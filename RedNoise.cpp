@@ -35,12 +35,6 @@ std::array<T, N> interpolate(T start, T end) {
 
 int main(int argc, char* argv[])
 {
-  auto result = interpolate<float, 7>(2.2f, 8.5f);
-  for(auto const& r: result) {
-    std::cout << r << std::endl;
-  }
-  return 0;
-
   SDL_Event event;
   while(true)
   {
@@ -57,10 +51,11 @@ void draw()
 {
   window.clearPixels();
   for(int y=0; y<window.height ;y++) {
+    auto greyscale = interpolate<float, WIDTH>(255.0f, 0.0f);
     for(int x=0; x<window.width ;x++) {
-      float red = rand() % 255;
-      float green = 0.0;
-      float blue = 0.0;
+      float red = greyscale[x];
+      float green = greyscale[x];
+      float blue = greyscale[x];
       uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
       window.setPixelColour(x, y, colour);
     }
