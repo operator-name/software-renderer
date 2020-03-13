@@ -6,8 +6,10 @@
 #include "practical.hpp"
 
 #include <glm/glm.hpp>
+#include <glm/gtc/random.hpp>
 #include <glm/gtx/io.hpp>
 
+#include <cstdlib>
 #include <fstream>
 
 using namespace std;
@@ -16,19 +18,20 @@ using namespace glm;
 #define WIDTH 320
 #define HEIGHT 240
 
+void setup();
 void draw();
 void update();
 void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-void triangle(DrawingWindow window, CanvasTriangle triangle, Colour color) {
-  line(window, triangle.vertices[0], triangle.vertices[1], color);
-  line(window, triangle.vertices[1], triangle.vertices[2], color);
-  line(window, triangle.vertices[2], triangle.vertices[0], color);
-}
+struct State {
+  CanvasTriangle triangle{CanvasPoint(0, 0), CanvasPoint(0, 0), CanvasPoint(0, 0)};
+} state;
 
 int main(int argc, char *argv[]) {
+  setup();
+
   SDL_Event event;
   while (true) {
     // We MUST poll for events - otherwise the window will freeze !
@@ -42,32 +45,12 @@ int main(int argc, char *argv[]) {
   }
 }
 
-void draw() {
-  window.clearPixels();
-  auto r = glm::vec3(255, 0, 0);
-  auto g = glm::vec3(0, 255, 0);
-  auto b = glm::vec3(0, 0, 250);
-  auto y = r + g;
-  auto redtoyellow = interpolate(r, y, window.height);
-  auto bluetogreen = interpolate(b, g, window.height);
-  for (int y = 0; y < window.height; y++) {
-    auto row = interpolate(redtoyellow[y], bluetogreen[y], window.width);
-    for (int x = 0; x < window.width; x++) {
-      float red = row[x][0];
-      float green = row[x][1];
-      float blue = row[x][2];
-      uint32_t colour =
-          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-      window.setPixelColour(x, y, colour);
-    }
-  }
+void setup() { std::srand(0); }
 
-  CanvasPoint t1(10, 10);
-  CanvasPoint t2(20, 40);
-  CanvasPoint t3(40, 20);
-  CanvasTriangle t(t1, t2, t3);
-  Colour c(255, 255, 255);
-  triangle(window, t, c);
+void draw() {
+  // window.clearPixels();
+
+  triangle(window, state.triangle);
 }
 
 void update() {
@@ -75,15 +58,32 @@ void update() {
 }
 
 void handleEvent(SDL_Event event) {
-  if (event.type == SDL_KEYDOWN) {
-    if (event.key.keysym.sym == SDLK_LEFT)
-      cout << "LEFT" << endl;
-    else if (event.key.keysym.sym == SDLK_RIGHT)
-      cout << "RIGHT" << endl;
-    else if (event.key.keysym.sym == SDLK_UP)
-      cout << "UP" << endl;
-    else if (event.key.keysym.sym == SDLK_DOWN)
-      cout << "DOWN" << endl;
-  } else if (event.type == SDL_MOUSEBUTTONDOWN)
-    cout << "MOUSE CLICKED" << endl;
+  switch (event.type) {
+  case SDL_KEYDOWN:
+    switch (event.key.keysym.sym) {
+    case SDLK_LEFT:
+      std::cout << "LEFT" << std::endl;
+      break;
+    case SDLK_RIGHT:
+      std::cout << "RIGHT" << std::endl;
+      break;
+    case SDLK_UP:
+      std::cout << "UP" << std::endl;
+      break;
+    case SDLK_DOWN:
+      std::cout << "DOWN" << std::endl;
+      break;
+    case SDLK_u:
+      state.triangle.colour = Colour(glm::linearRand(0, 255), glm::linearRand(0, 255), glm::linearRand(0, 255));
+      for (auto &vertex: state.triangle.vertices) {
+        vertex.x = glm::linearRand(0, window.width-1);
+        vertex.y = glm::linearRand(0, window.height-1);
+      }
+      break;
+    }
+    break;
+  case SDL_MOUSEBUTTONDOWN:
+    std::cout << "MOUSE CLICKED" << endl;
+    break;
+  }
 }
