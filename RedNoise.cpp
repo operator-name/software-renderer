@@ -9,8 +9,6 @@
 #include <glm/gtx/io.hpp>
 
 #include <fstream>
-#include <vector>
-#include <array>
 
 using namespace std;
 using namespace glm;
@@ -66,10 +64,10 @@ void draw()
   auto g = glm::vec3(0, 255, 0);
   auto b = glm::vec3(0, 0, 250);
   auto y = r + g;
-  auto redtoyellow = interpolate<HEIGHT>(r, y);
-  auto bluetogreen = interpolate<HEIGHT>(b, g);
+  auto redtoyellow = interpolate(r, y, window.height);
+  auto bluetogreen = interpolate(b, g, window.height);
   for(int y=0; y<window.height ;y++) {
-    auto row = interpolate<WIDTH>(redtoyellow[y], bluetogreen[y]);
+    auto row = interpolate(redtoyellow[y], bluetogreen[y], window.width);
     for(int x=0; x<window.width ;x++) {
       float red = row[x][0];
       float green = row[x][1];
