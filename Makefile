@@ -3,7 +3,7 @@ PROJECT_NAME = RedNoise
 # Define the names of key files
 SOURCE_FILE = $(PROJECT_NAME).cpp
 OBJECT_FILE = $(PROJECT_NAME).o
-EXECUTABLE = $(PROJECT_NAME)
+EXECUTABLE = $(PROJECT_NAME).out
 WINDOW_SOURCE = libs/sdw/DrawingWindow.cpp
 WINDOW_OBJECT = libs/sdw/DrawingWindow.o
 
@@ -12,7 +12,7 @@ COMPILER = g++
 COMPILER_OPTIONS = -c -pipe -Wall -std=c++11
 DEBUG_OPTIONS = -ggdb -g3
 FUSSY_OPTIONS = -Werror -pedantic
-SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer
+SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fno-omit-frame-pointer # -fsanitize=address
 SPEEDY_OPTIONS = -Ofast -funsafe-math-optimizations -march=native
 LINKER_OPTIONS =
 
