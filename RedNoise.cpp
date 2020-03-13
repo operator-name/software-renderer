@@ -2,8 +2,12 @@
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
 #include <Utils.h>
+
+#include "practical.h"
+
 #include <glm/glm.hpp>
 #include <glm/gtx/io.hpp>
+
 #include <fstream>
 #include <vector>
 #include <array>
@@ -20,55 +24,25 @@ void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-// lerp
-template<std::size_t N, typename T>
-std::array<T, N> interpolate(T start, T end) {
-  std::array<T, N> result;
-  // std::size_t delta = std::max(N - 1, 1);
-  T step = (end - start) / std::max(N - 1, static_cast<size_t>(1));
+// void line(CanvasPoint start, CanvasPoint end/*, Color color*/) {
+// // float xDiff = toX - fromX;
+// // float yDiff = toY - fromY;
+// // float numberOfSteps = max(abs(xDiff), abs(yDiff));
+// // float xStepSize = xDiff/numberOfSteps;
+// // float yStepSize = yDiff/numberOfSteps;
+// // for (float i=0.0; i<numberOfSteps; i++) {
+// //   float x = fromX + (xStepSize*i);
+// //   float y = fromY + (yStepSize*i);
+// //   display.setPixelColour(round(x), round(y), BLACK);
+// // }
+//   glm::vec2 diff{end.x - start.x, end.y - start.y};
+//   float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
+//   glm::vec2 step{}
 
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * i;
-  }
-
-  return result;
-}
-template<std::size_t N, typename T>
-std::array<glm::tvec2<T>, N> interpolate(glm::tvec2<T> start, glm::tvec2<T> end) {
-  std::array<glm::tvec2<T>, N> result;
-  // std::size_t delta = std::max(N - 1, 1);
-  glm::tvec2<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
-  }
-
-  return result;
-}
-template<std::size_t N, typename T>
-std::array<glm::tvec3<T>, N> interpolate(glm::tvec3<T> start, glm::tvec3<T> end) {
-  std::array<glm::tvec3<T>, N> result;
-  // std::size_t delta = std::max(N - 1, 1);
-  glm::tvec3<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
-  }
-
-  return result;
-}
-template<std::size_t N, typename T>
-std::array<glm::tvec4<T>, N> interpolate(glm::tvec4<T> start, glm::tvec4<T> end) {
-  std::array<glm::tvec2<T>, N> result;
-  // std::size_t delta = std::max(N - 1, 1);
-  glm::tvec4<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
-  }
-
-  return result;
-}
+//   int red, gree, blue = 255;
+//   uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+//   window.setPixelColour(x, y, colour);
+// }
 
 
 int main(int argc, char* argv[])
