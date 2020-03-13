@@ -1,6 +1,6 @@
-#include <ModelTriangle.h>
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include <ModelTriangle.h>
 #include <Utils.h>
 
 #include "practical.h"
@@ -42,23 +42,21 @@ DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 //   window.setPixelColour(x, y, colour);
 // }
 
-
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
   SDL_Event event;
-  while(true)
-  {
+  while (true) {
     // We MUST poll for events - otherwise the window will freeze !
-    if(window.pollForInputEvents(&event)) handleEvent(event);
+    if (window.pollForInputEvents(&event))
+      handleEvent(event);
     update();
     draw();
-    // Need to render the frame at the end, or nothing actually gets shown on the screen !
+    // Need to render the frame at the end, or nothing actually gets shown on
+    // the screen !
     window.renderFrame();
   }
 }
 
-void draw()
-{
+void draw() {
   window.clearPixels();
   auto r = glm::vec3(255, 0, 0);
   auto g = glm::vec3(0, 255, 0);
@@ -66,30 +64,33 @@ void draw()
   auto y = r + g;
   auto redtoyellow = interpolate(r, y, window.height);
   auto bluetogreen = interpolate(b, g, window.height);
-  for(int y=0; y<window.height ;y++) {
+  for (int y = 0; y < window.height; y++) {
     auto row = interpolate(redtoyellow[y], bluetogreen[y], window.width);
-    for(int x=0; x<window.width ;x++) {
+    for (int x = 0; x < window.width; x++) {
       float red = row[x][0];
       float green = row[x][1];
       float blue = row[x][2];
-      uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+      uint32_t colour =
+          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
       window.setPixelColour(x, y, colour);
     }
   }
 }
 
-void update()
-{
+void update() {
   // Function for performing animation (shifting artifacts or moving the camera)
 }
 
-void handleEvent(SDL_Event event)
-{
-  if(event.type == SDL_KEYDOWN) {
-    if(event.key.keysym.sym == SDLK_LEFT) cout << "LEFT" << endl;
-    else if(event.key.keysym.sym == SDLK_RIGHT) cout << "RIGHT" << endl;
-    else if(event.key.keysym.sym == SDLK_UP) cout << "UP" << endl;
-    else if(event.key.keysym.sym == SDLK_DOWN) cout << "DOWN" << endl;
-  }
-  else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
+void handleEvent(SDL_Event event) {
+  if (event.type == SDL_KEYDOWN) {
+    if (event.key.keysym.sym == SDLK_LEFT)
+      cout << "LEFT" << endl;
+    else if (event.key.keysym.sym == SDLK_RIGHT)
+      cout << "RIGHT" << endl;
+    else if (event.key.keysym.sym == SDLK_UP)
+      cout << "UP" << endl;
+    else if (event.key.keysym.sym == SDLK_DOWN)
+      cout << "DOWN" << endl;
+  } else if (event.type == SDL_MOUSEBUTTONDOWN)
+    cout << "MOUSE CLICKED" << endl;
 }

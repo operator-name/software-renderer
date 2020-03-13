@@ -1,8 +1,7 @@
 #include "SDL.h"
 #include <iostream>
 
-class DrawingWindow
-{
+class DrawingWindow {
 
 private:
   SDL_Window *window;
@@ -24,16 +23,13 @@ public:
   uint32_t getPixelColour(int x, int y);
   void clearPixels();
 
-  void printMessageAndQuit(const char* message, const char* error)
-  {
-    if(error == NULL) {
+  void printMessageAndQuit(const char *message, const char *error) {
+    if (error == NULL) {
       std::cout << message << std::endl;
       exit(0);
-    }
-    else {
-      std::cout << message << " " << error <<std::endl;
+    } else {
+      std::cout << message << " " << error << std::endl;
       exit(1);
     }
   }
-
 };
