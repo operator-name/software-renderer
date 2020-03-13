@@ -3,6 +3,7 @@
 #include <DrawingWindow.h>
 #include <Utils.h>
 #include <glm/glm.hpp>
+#include <glm/gtx/io.hpp>
 #include <fstream>
 #include <vector>
 #include <array>
@@ -20,7 +21,7 @@ void handleEvent(SDL_Event event);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 // lerp
-template<typename T, std::size_t N>
+template<std::size_t N, typename T>
 std::array<T, N> interpolate(T start, T end) {
   std::array<T, N> result;
   // std::size_t delta = std::max(N - 1, 1);
@@ -32,9 +33,55 @@ std::array<T, N> interpolate(T start, T end) {
 
   return result;
 }
+template<std::size_t N, typename T>
+std::array<glm::tvec2<T>, N> interpolate(glm::tvec2<T> start, glm::tvec2<T> end) {
+  std::array<glm::tvec2<T>, N> result;
+  // std::size_t delta = std::max(N - 1, 1);
+  glm::tvec2<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
+
+  for (std::size_t i = 0; i < N; i++) {
+    result[i] = start + step * static_cast<T>(i);
+  }
+
+  return result;
+}
+template<std::size_t N, typename T>
+std::array<glm::tvec3<T>, N> interpolate(glm::tvec3<T> start, glm::tvec3<T> end) {
+  std::array<glm::tvec3<T>, N> result;
+  // std::size_t delta = std::max(N - 1, 1);
+  glm::tvec3<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
+
+  for (std::size_t i = 0; i < N; i++) {
+    result[i] = start + step * static_cast<T>(i);
+  }
+
+  return result;
+}
+template<std::size_t N, typename T>
+std::array<glm::tvec4<T>, N> interpolate(glm::tvec4<T> start, glm::tvec4<T> end) {
+  std::array<glm::tvec2<T>, N> result;
+  // std::size_t delta = std::max(N - 1, 1);
+  glm::tvec4<T> step = (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
+
+  for (std::size_t i = 0; i < N; i++) {
+    result[i] = start + step * static_cast<T>(i);
+  }
+
+  return result;
+}
+
 
 int main(int argc, char* argv[])
 {
+  glm::vec3 from( 1, 4, 9.2 );
+  glm::vec3 to( 4, 1, 9.8 );
+  auto result = interpolate<4>(from, to);
+  for (auto& i : result) {
+    std::cout << i << std::endl;
+  }
+
+  return 0;
+
   SDL_Event event;
   while(true)
   {
@@ -51,7 +98,7 @@ void draw()
 {
   window.clearPixels();
   for(int y=0; y<window.height ;y++) {
-    auto greyscale = interpolate<float, WIDTH>(255.0f, 0.0f);
+    auto greyscale = interpolate<WIDTH>(255.0f, 0.0f);
     for(int x=0; x<window.width ;x++) {
       float red = greyscale[x];
       float green = greyscale[x];
