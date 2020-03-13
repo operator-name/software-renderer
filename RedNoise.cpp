@@ -73,15 +73,6 @@ std::array<glm::tvec4<T>, N> interpolate(glm::tvec4<T> start, glm::tvec4<T> end)
 
 int main(int argc, char* argv[])
 {
-  glm::vec3 from( 1, 4, 9.2 );
-  glm::vec3 to( 4, 1, 9.8 );
-  auto result = interpolate<4>(from, to);
-  for (auto& i : result) {
-    std::cout << i << std::endl;
-  }
-
-  return 0;
-
   SDL_Event event;
   while(true)
   {
@@ -97,12 +88,18 @@ int main(int argc, char* argv[])
 void draw()
 {
   window.clearPixels();
+  auto r = glm::vec3(255, 0, 0);
+  auto g = glm::vec3(0, 255, 0);
+  auto b = glm::vec3(0, 0, 250);
+  auto y = r + g;
+  auto redtoyellow = interpolate<HEIGHT>(r, y);
+  auto bluetogreen = interpolate<HEIGHT>(b, g);
   for(int y=0; y<window.height ;y++) {
-    auto greyscale = interpolate<WIDTH>(255.0f, 0.0f);
+    auto row = interpolate<WIDTH>(redtoyellow[y], bluetogreen[y]);
     for(int x=0; x<window.width ;x++) {
-      float red = greyscale[x];
-      float green = greyscale[x];
-      float blue = greyscale[x];
+      float red = row[x][0];
+      float green = row[x][1];
+      float blue = row[x][2];
       uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
       window.setPixelColour(x, y, colour);
     }
