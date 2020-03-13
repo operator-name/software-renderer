@@ -22,19 +22,10 @@ void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-void line(CanvasPoint start, CanvasPoint end, Colour color) {
-  glm::vec2 diff{end.x - start.x, end.y - start.y};
-  float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
-  glm::vec2 stepsize = diff / steps;
-
-  for (float i = 0; i < steps; i++) {
-    
-    float x = start.x + stepsize.x * i;
-    float y = start.y + stepsize.y * i;
-
-    uint32_t colour = (255<<24) + (int(color.red)<<16) + (int(color.green)<<8) + int(color.blue);
-    window.setPixelColour(glm::round(x), glm::round(y), colour);
-  }
+void triangle(DrawingWindow window, CanvasTriangle triangle, Colour color) {
+  line(window, triangle.vertices[0], triangle.vertices[1], color);
+  line(window, triangle.vertices[1], triangle.vertices[2], color);
+  line(window, triangle.vertices[2], triangle.vertices[0], color);
 }
 
 int main(int argc, char *argv[]) {
@@ -71,9 +62,12 @@ void draw() {
     }
   }
 
-  CanvasPoint s(10, 10);
-  CanvasPoint e(20, 40);
-  line(s, e, Colour(0, 0, 0));
+  CanvasPoint t1(10, 10);
+  CanvasPoint t2(20, 40);
+  CanvasPoint t3(40, 20);
+  CanvasTriangle t(t1, t2, t3);
+  Colour c(255, 255, 255);
+  triangle(window, t, c);
 }
 
 void update() {
