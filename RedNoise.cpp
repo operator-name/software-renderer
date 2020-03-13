@@ -22,7 +22,7 @@ void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-void line(CanvasPoint start, CanvasPoint end/*, Color color*/) {
+void line(CanvasPoint start, CanvasPoint end, Colour color) {
   glm::vec2 diff{end.x - start.x, end.y - start.y};
   float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
   glm::vec2 stepsize = diff / steps;
@@ -32,8 +32,7 @@ void line(CanvasPoint start, CanvasPoint end/*, Color color*/) {
     float x = start.x + stepsize.x * i;
     float y = start.y + stepsize.y * i;
 
-    int red = 255, green = 255, blue = 255;
-    uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+    uint32_t colour = (255<<24) + (int(color.red)<<16) + (int(color.green)<<8) + int(color.blue);
     window.setPixelColour(glm::round(x), glm::round(y), colour);
   }
 }
@@ -74,7 +73,7 @@ void draw() {
 
   CanvasPoint s(10, 10);
   CanvasPoint e(20, 40);
-  line(s, e);
+  line(s, e, Colour(0, 0, 0));
 }
 
 void update() {
