@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <fstream>
 #include <vector>
+#include <array>
 
 using namespace std;
 using namespace glm;
@@ -18,8 +19,28 @@ void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
+// lerp
+template<typename T, std::size_t N>
+std::array<T, N> interpolate(T start, T end) {
+  std::array<T, N> result;
+  // std::size_t delta = std::max(N - 1, 1);
+  T step = (end - start) / std::max(N - 1, static_cast<size_t>(1));
+
+  for (std::size_t i = 0; i < N; i++) {
+    result[i] = start + step * i;
+  }
+
+  return result;
+}
+
 int main(int argc, char* argv[])
 {
+  auto result = interpolate<float, 7>(2.2f, 8.5f);
+  for(auto const& r: result) {
+    std::cout << r << std::endl;
+  }
+  return 0;
+
   SDL_Event event;
   while(true)
   {

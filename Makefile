@@ -8,11 +8,11 @@ WINDOW_SOURCE = libs/sdw/DrawingWindow.cpp
 WINDOW_OBJECT = libs/sdw/DrawingWindow.o
 
 # Build settings
-COMPILER = g++
+COMPILER = g++ # clang++
 COMPILER_OPTIONS = -c -pipe -Wall -std=c++11
 DEBUG_OPTIONS = -ggdb -g3
 FUSSY_OPTIONS = -Werror -pedantic
-SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fno-omit-frame-pointer # -fsanitize=address
+SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fno-omit-frame-pointer #-fsanitize=address
 SPEEDY_OPTIONS = -Ofast -funsafe-math-optimizations -march=native
 LINKER_OPTIONS =
 
@@ -58,5 +58,6 @@ window:
 
 # Files to remove during clean
 clean:
+	# rm $(WINDOW_OBJECT)
 	rm $(OBJECT_FILE)
 	rm $(EXECUTABLE)
