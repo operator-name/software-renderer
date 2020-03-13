@@ -3,7 +3,7 @@
 #include <ModelTriangle.h>
 #include <Utils.h>
 
-#include "practical.h"
+#include "practical.hpp"
 
 #include <glm/glm.hpp>
 #include <glm/gtx/io.hpp>
@@ -22,25 +22,21 @@ void handleEvent(SDL_Event event);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-// void line(CanvasPoint start, CanvasPoint end/*, Color color*/) {
-// // float xDiff = toX - fromX;
-// // float yDiff = toY - fromY;
-// // float numberOfSteps = max(abs(xDiff), abs(yDiff));
-// // float xStepSize = xDiff/numberOfSteps;
-// // float yStepSize = yDiff/numberOfSteps;
-// // for (float i=0.0; i<numberOfSteps; i++) {
-// //   float x = fromX + (xStepSize*i);
-// //   float y = fromY + (yStepSize*i);
-// //   display.setPixelColour(round(x), round(y), BLACK);
-// // }
-//   glm::vec2 diff{end.x - start.x, end.y - start.y};
-//   float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
-//   glm::vec2 step{}
+void line(CanvasPoint start, CanvasPoint end/*, Color color*/) {
+  glm::vec2 diff{end.x - start.x, end.y - start.y};
+  float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
+  glm::vec2 stepsize = diff / steps;
 
-//   int red, gree, blue = 255;
-//   uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
-//   window.setPixelColour(x, y, colour);
-// }
+  for (float i = 0; i < steps; i++) {
+    
+    float x = start.x + stepsize.x * i;
+    float y = start.y + stepsize.y * i;
+
+    int red = 255, green = 255, blue = 255;
+    uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+    window.setPixelColour(glm::round(x), glm::round(y), colour);
+  }
+}
 
 int main(int argc, char *argv[]) {
   SDL_Event event;
@@ -75,6 +71,10 @@ void draw() {
       window.setPixelColour(x, y, colour);
     }
   }
+
+  CanvasPoint s(10, 10);
+  CanvasPoint e(20, 40);
+  line(s, e);
 }
 
 void update() {

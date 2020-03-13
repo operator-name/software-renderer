@@ -4,7 +4,7 @@
 
 #include <vector>
 
-// lerp
+// strange lerp
 template <typename T>
 std::vector<T> interpolate(T start, T end, std::size_t N) {
   std::vector<T> result(N);

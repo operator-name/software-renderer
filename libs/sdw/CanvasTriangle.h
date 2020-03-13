@@ -1,3 +1,4 @@
+#include "Colour.h"
 #include "CanvasPoint.h"
 #include <iostream>
 
