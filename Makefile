@@ -1,4 +1,4 @@
-PROJECT_NAME = RedNoise
+PROJECT_NAME = software-renderer
 
 # Define the names of key files
 SOURCE_FILE = $(PROJECT_NAME).cpp
@@ -58,6 +58,12 @@ window:
 
 run: $(EXECUTABLE)
 	./$(EXECUTABLE)
+
+dev:
+	clang-format -i *.*pp
+	clear
+	make debug
+	make run
 
 # Files to remove during clean
 clean:
