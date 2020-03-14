@@ -1,5 +1,7 @@
 #include "sdw/window.h"
 
+namespace sdw{
+
 // Simple constructor method
 DrawingWindow::DrawingWindow() {}
 
@@ -83,4 +85,6 @@ uint32_t DrawingWindow::getPixelColour(int x, int y) {
 
 void DrawingWindow::clearPixels() {
   memset(pixelBuffer, 0, width * height * sizeof(uint32_t));
+}
+
 }

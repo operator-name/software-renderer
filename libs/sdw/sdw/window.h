@@ -2,7 +2,7 @@
 #include "SDL.h"
 #include <iostream>
 
-// namespace sdw {
+namespace sdw {
 
 class DrawingWindow {
 
@@ -37,4 +37,4 @@ public:
   }
 };
 
-// }
+}

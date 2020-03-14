@@ -61,7 +61,7 @@ std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
 
 // naive, why not one of these:
 // https://en.wikipedia.org/wiki/Line_drawing_algorithm
-void line(DrawingWindow window, CanvasPoint start, CanvasPoint end,
+void line(sdw::DrawingWindow window, CanvasPoint start, CanvasPoint end,
           Colour colour) {
   glm::vec2 diff{end.x - start.x, end.y - start.y};
   float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
@@ -78,7 +78,7 @@ void line(DrawingWindow window, CanvasPoint start, CanvasPoint end,
   }
 }
 
-void linetriangle(DrawingWindow window, CanvasTriangle triangle) {
+void linetriangle(sdw::DrawingWindow window, CanvasTriangle triangle) {
   line(window, triangle.vertices[0], triangle.vertices[1], triangle.colour);
   line(window, triangle.vertices[1], triangle.vertices[2], triangle.colour);
   line(window, triangle.vertices[2], triangle.vertices[0], triangle.colour);
@@ -86,7 +86,7 @@ void linetriangle(DrawingWindow window, CanvasTriangle triangle) {
 
 #include <glm/gtc/random.hpp>
 
-CanvasTriangle randomtriangleinside(DrawingWindow window) {
+CanvasTriangle randomtriangleinside(sdw::DrawingWindow window) {
   CanvasTriangle triangle;
 
   triangle.colour = Colour(glm::linearRand(0, 255), glm::linearRand(0, 255),
@@ -104,7 +104,7 @@ CanvasTriangle randomtriangleinside(DrawingWindow window) {
 #include <algorithm>
 
 // assumes trangle.vertices[1].y == trangle.vertices[2].y
-void filledtriangleflat(DrawingWindow window, CanvasTriangle triangle) {
+void filledtriangleflat(sdw::DrawingWindow window, CanvasTriangle triangle) {
   glm::vec2 top(triangle.vertices[0].x, triangle.vertices[0].y);
   glm::vec2 bottom1(triangle.vertices[1].x, triangle.vertices[1].y);
   glm::vec2 bottom2(triangle.vertices[2].x, triangle.vertices[2].y);
@@ -125,7 +125,7 @@ void filledtriangleflat(DrawingWindow window, CanvasTriangle triangle) {
 
 // why not barycentric coordinates
 // http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
-void filledtriangle(DrawingWindow window, CanvasTriangle triangle) {
+void filledtriangle(sdw::DrawingWindow window, CanvasTriangle triangle) {
   std::sort(
       std::begin(triangle.vertices), std::end(triangle.vertices),
       [](const CanvasPoint &a, const CanvasPoint &b) { return a.y < b.y; });
