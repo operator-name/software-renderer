@@ -43,9 +43,9 @@ int main(int argc, char *argv[]) {
   }
 }
 
-void setup() { 
+void setup() {
   // seed random state to be the same each time (for debugging)
-  std::srand(0); 
+  std::srand(0);
 }
 
 void draw() {

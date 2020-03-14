@@ -6,7 +6,8 @@ stdenv.mkDerivation {
 
   buildInputs = with pkgs; [
     # gdb
-    # clang_9
+    clang_9 # clang-format
+    clang-tools
     SDL2
   ];
 
