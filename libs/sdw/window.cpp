@@ -3,10 +3,10 @@
 namespace sdw{
 
 // Simple constructor method
-DrawingWindow::DrawingWindow() {}
+window::window() {}
 
 // Complex constructor method
-DrawingWindow::DrawingWindow(int w, int h, bool fullscreen) {
+window::window(int w, int h, bool fullscreen) {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
     printMessageAndQuit("Could not initialise SDL: ", SDL_GetError());
   }
@@ -20,13 +20,13 @@ DrawingWindow::DrawingWindow(int w, int h, bool fullscreen) {
   if (fullscreen)
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   int ANYWHERE = SDL_WINDOWPOS_UNDEFINED;
-  window =
+  _window =
       SDL_CreateWindow("COMS30115", ANYWHERE, ANYWHERE, width, height, flags);
-  if (window == 0)
+  if (_window == 0)
     printMessageAndQuit("Could not set video mode: ", SDL_GetError());
 
   flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
-  renderer = SDL_CreateRenderer(window, -1, flags);
+  renderer = SDL_CreateRenderer(_window, -1, flags);
   if (renderer == 0)
     printMessageAndQuit("Could not create renderer: ", SDL_GetError());
 
@@ -41,22 +41,22 @@ DrawingWindow::DrawingWindow(int w, int h, bool fullscreen) {
 }
 
 // Deconstructor method
-void DrawingWindow::destroy() {
+void window::destroy() {
   delete[] pixelBuffer;
   SDL_DestroyTexture(texture);
   SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
+  SDL_DestroyWindow(_window);
   SDL_Quit();
 }
 
-void DrawingWindow::renderFrame() {
+void window::renderFrame() {
   SDL_UpdateTexture(texture, NULL, pixelBuffer, width * sizeof(uint32_t));
   SDL_RenderClear(renderer);
   SDL_RenderCopy(renderer, texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 }
 
-bool DrawingWindow::pollForInputEvents(SDL_Event *event) {
+bool window::pollForInputEvents(SDL_Event *event) {
   if (SDL_PollEvent(event)) {
     if ((event->type == SDL_QUIT) || ((event->type == SDL_KEYDOWN) &&
                                       (event->key.keysym.sym == SDLK_ESCAPE))) {
@@ -68,14 +68,14 @@ bool DrawingWindow::pollForInputEvents(SDL_Event *event) {
   return false;
 }
 
-void DrawingWindow::setPixelColour(int x, int y, uint32_t colour) {
+void window::setPixelColour(int x, int y, uint32_t colour) {
   if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
     std::cout << x << "," << y << " not on visible screen area" << std::endl;
   } else
     pixelBuffer[(y * width) + x] = colour;
 }
 
-uint32_t DrawingWindow::getPixelColour(int x, int y) {
+uint32_t window::getPixelColour(int x, int y) {
   if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
     std::cout << x << "," << y << " not on visible screen area" << std::endl;
     return -1;
@@ -83,7 +83,7 @@ uint32_t DrawingWindow::getPixelColour(int x, int y) {
     return pixelBuffer[(y * width) + x];
 }
 
-void DrawingWindow::clearPixels() {
+void window::clearPixels() {
   memset(pixelBuffer, 0, width * height * sizeof(uint32_t));
 }
 

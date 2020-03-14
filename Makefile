@@ -52,8 +52,11 @@ speedy: window
 	$(COMPILER) $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
 	# ./$(EXECUTABLE)
 
-# Rule for building the DisplayWindow
-window:
+
+.PHONY: window
+window: $(WINDOW_OBJECT)
+
+$(WINDOW_OBJECT):
 	$(COMPILER) $(COMPILER_OPTIONS) -o $(WINDOW_OBJECT) $(WINDOW_SOURCE) $(SDL_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 
 run: $(EXECUTABLE)
@@ -63,10 +66,10 @@ dev:
 	clang-format -i *.*pp
 	clear
 	make debug
-	make run
+	make run 	
 
 # Files to remove during clean
 clean:
-	# rm $(WINDOW_OBJECT)
+	rm -f $(WINDOW_OBJECT)
 	rm -f $(OBJECT_FILE)
 	rm -f $(EXECUTABLE)

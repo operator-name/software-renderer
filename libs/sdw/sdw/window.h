@@ -4,10 +4,10 @@
 
 namespace sdw {
 
-class DrawingWindow {
+class window {
 
 private:
-  SDL_Window *window;
+  SDL_Window *_window;
   SDL_Renderer *renderer;
   SDL_Texture *texture;
   uint32_t *pixelBuffer;
@@ -17,8 +17,8 @@ public:
   int width;
 
   // Constructor method
-  DrawingWindow();
-  DrawingWindow(int w, int h, bool fullscreen);
+  window();
+  window(int w, int h, bool fullscreen);
   void destroy();
   void renderFrame();
   bool pollForInputEvents(SDL_Event *event);

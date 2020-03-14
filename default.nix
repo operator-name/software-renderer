@@ -1,6 +1,6 @@
 with import <nixpkgs> {};
 
-stdenv.mkDerivation {
+stdenv.mkDerivation rec {
   name = "software-renderer";
   src = ./.;
 
@@ -15,6 +15,6 @@ stdenv.mkDerivation {
 
   installPhase = ''
     mkdir -p $out/bin/
-    cp RedNoise.out $out/bin/software-renderer
+    cp ${name}.out $out/bin/${name}
   '';
 }

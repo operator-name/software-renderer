@@ -20,7 +20,7 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 
-sdw::DrawingWindow window = sdw::DrawingWindow(WIDTH, HEIGHT, false);
+sdw::window window = sdw::window(WIDTH, HEIGHT, false);
 
 struct State {
   CanvasTriangle unfilled_triangle;
