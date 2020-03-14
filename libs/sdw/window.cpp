@@ -1,6 +1,8 @@
 #include "sdw/window.h"
 
-namespace sdw{
+#include <iostream>
+
+namespace sdw {
 
 // Simple constructor method
 window::window() {}
@@ -87,4 +89,14 @@ void window::clearPixels() {
   memset(pixelBuffer, 0, width * height * sizeof(uint32_t));
 }
 
+void window::printMessageAndQuit(const char *message, const char *error) {
+  if (error == NULL) {
+    std::cout << message << std::endl;
+    exit(0);
+  } else {
+    std::cout << message << " " << error << std::endl;
+    exit(1);
+  }
 }
+
+} // namespace sdw

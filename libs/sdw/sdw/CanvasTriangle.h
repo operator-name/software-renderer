@@ -1,5 +1,5 @@
-#include "Colour.h"
 #include "CanvasPoint.h"
+#include "Colour.h"
 #include <iostream>
 
 class CanvasTriangle {

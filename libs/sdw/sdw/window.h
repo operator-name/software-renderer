@@ -1,6 +1,5 @@
 #pragma once
 #include "SDL.h"
-#include <iostream>
 
 namespace sdw {
 
@@ -26,15 +25,7 @@ public:
   uint32_t getPixelColour(int x, int y);
   void clearPixels();
 
-  void printMessageAndQuit(const char *message, const char *error) {
-    if (error == NULL) {
-      std::cout << message << std::endl;
-      exit(0);
-    } else {
-      std::cout << message << " " << error << std::endl;
-      exit(1);
-    }
-  }
+  void printMessageAndQuit(const char *message, const char *error);
 };
 
-}
+} // namespace sdw
