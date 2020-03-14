@@ -4,8 +4,8 @@ PROJECT_NAME = software-renderer
 SOURCE_FILE = $(PROJECT_NAME).cpp
 OBJECT_FILE = $(PROJECT_NAME).o
 EXECUTABLE = $(PROJECT_NAME).out
-WINDOW_SOURCE = libs/sdw/DrawingWindow.cpp
-WINDOW_OBJECT = libs/sdw/DrawingWindow.o
+WINDOW_SOURCE = libs/sdw/window.cpp
+WINDOW_OBJECT = libs/sdw/window.o
 
 # Build settings
 COMPILER = g++ # clang++

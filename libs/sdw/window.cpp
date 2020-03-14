@@ -1,4 +1,4 @@
-#include "DrawingWindow.h"
+#include "sdw/window.h"
 
 // Simple constructor method
 DrawingWindow::DrawingWindow() {}

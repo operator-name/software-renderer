@@ -56,8 +56,8 @@ std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
   return result;
 }
 
-#include <Colour.h>
-#include <DrawingWindow.h>
+#include <sdw/Colour.h>
+#include <sdw/window.h>
 
 // naive, why not one of these:
 // https://en.wikipedia.org/wiki/Line_drawing_algorithm

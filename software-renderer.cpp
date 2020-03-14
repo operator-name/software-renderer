@@ -1,7 +1,7 @@
-#include <CanvasTriangle.h>
-#include <DrawingWindow.h>
-#include <ModelTriangle.h>
-#include <Utils.h>
+#include <sdw/CanvasTriangle.h>
+#include <sdw/ModelTriangle.h>
+#include <sdw/Utils.h>
+#include <sdw/window.h>
 
 #include "practical.hpp"
 
