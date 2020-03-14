@@ -25,6 +25,12 @@ SDL_COMPILER_FLAGS := $(shell sdl2-config --cflags)
 SDL_LINKER_FLAGS := $(shell sdl2-config --libs)
 SDW_LINKER_FLAGS := $(WINDOW_OBJECT)
 
+libs/libSDL2pp/lib/libSDL2pp.a:
+	cmake ./extlibs/libSDL2pp/ -DCMAKE_INSTALL_PREFIX=./libs/libSDL2pp -DSDL2PP_WITH_IMAGE=OFF -DSDL2PP_WITH_MIXER=OFF -DSDL2PP_WITH_TTF=OFF -DSDL2PP_ENABLE_LIVE_TESTS=OFF -DSDL2PP_WITH_EXAMPLES=OFF -DSDL2PP_WITH_TESTS=OFF -DSDL2PP_STATIC=ON
+	cd ./extlibs/libSDL2pp && make install
+
+LIBSDL2PP_COMPILER_FLAGS := -L./libs/libSDL2pp/lib -I./libs/libSDL2pp/include/
+
 default: speedy
 
 # Rule to help find errors (when you get a segmentation fault)
@@ -57,7 +63,7 @@ speedy: window
 window: $(WINDOW_OBJECT)
 
 $(WINDOW_OBJECT):
-	$(COMPILER) $(COMPILER_OPTIONS) -o $(WINDOW_OBJECT) $(WINDOW_SOURCE) $(SDL_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
+	$(COMPILER) $(COMPILER_OPTIONS) -o $(WINDOW_OBJECT) $(WINDOW_SOURCE) $(SDL_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS) $(LIBSDL2PP_COMPILER_FLAGS)
 
 run: $(EXECUTABLE)
 	./$(EXECUTABLE)

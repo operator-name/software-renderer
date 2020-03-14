@@ -11,7 +11,9 @@ stdenv.mkDerivation rec {
     SDL2
   ];
 
-  buildPhase = "make";
+  buildPhase = ''
+    make
+  '';
 
   installPhase = ''
     mkdir -p $out/bin/
