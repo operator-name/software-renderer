@@ -25,36 +25,39 @@ SDL_COMPILER_FLAGS := $(shell sdl2-config --cflags)
 SDL_LINKER_FLAGS := $(shell sdl2-config --libs)
 SDW_LINKER_FLAGS := $(WINDOW_OBJECT)
 
-default: debug
+default: speedy
 
 # Rule to help find errors (when you get a segmentation fault)
 # NOTE: Needs the "Address Sanitizer" library to be installed in order to work (might not work on lab machines !)
 diagnostic: window
 	$(COMPILER) $(COMPILER_OPTIONS) $(FUSSY_OPTIONS) $(SANITIZER_OPTIONS) -o $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) $(LINKER_OPTIONS) $(FUSSY_OPTIONS) $(SANITIZER_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
-	./$(EXECUTABLE)
+	# ./$(EXECUTABLE)
 
 # Rule to compile and link for production release
 production: window
 	$(COMPILER) $(COMPILER_OPTIONS) -o $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) $(LINKER_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
-	./$(EXECUTABLE)
+	# ./$(EXECUTABLE)
 
 # Rule to compile and link for use with a debugger
 debug: window
 	$(COMPILER) $(COMPILER_OPTIONS) $(DEBUG_OPTIONS) -o $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) $(LINKER_OPTIONS) $(DEBUG_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
-	./$(EXECUTABLE)
+	# ./$(EXECUTABLE)
 
 # Rule to build for high performance executable
 speedy: window
 	$(COMPILER) $(COMPILER_OPTIONS) $(SPEEDY_OPTIONS) -o $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
-	./$(EXECUTABLE)
+	# ./$(EXECUTABLE)
 
 # Rule for building the DisplayWindow
 window:
 	$(COMPILER) $(COMPILER_OPTIONS) -o $(WINDOW_OBJECT) $(WINDOW_SOURCE) $(SDL_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
+
+run: $(EXECUTABLE)
+	./$(EXECUTABLE)
 
 # Files to remove during clean
 clean:

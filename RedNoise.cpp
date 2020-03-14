@@ -30,6 +30,8 @@ struct State {
   CanvasTriangle filled_triangle;
 } state;
 
+
+
 int main(int argc, char *argv[]) {
   setup();
 
