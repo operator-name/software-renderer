@@ -1,3 +1,24 @@
+# nixpkgs gitignore, taken from https://github.com/NixOS/nixpkgs/blob/master/.gitignore
+*~
+,*
+.*.swp
+.*.swo
+result
+result-*
+/doc/NEWS.html
+/doc/NEWS.txt
+/doc/manual.html
+/doc/manual.pdf
+.version-suffix
+
+.DS_Store
+
+/pkgs/development/libraries/qt-5/*/tmp/
+/pkgs/desktops/kde-5/*/tmp/
+/pkgs/development/mobile/androidenv/xml/*
+
+
+# C++, taken from https://github.com/github/gitignore/blob/master/C%2B%2B.gitignore
 # Prerequisites
 *.d
 
