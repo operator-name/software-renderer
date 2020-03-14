@@ -12,9 +12,6 @@
 #include <cstdlib>
 #include <fstream>
 
-using namespace std;
-using namespace glm;
-
 #define WIDTH 320 * 2
 #define HEIGHT 240 * 2
 
@@ -29,8 +26,6 @@ struct State {
   CanvasTriangle unfilled_triangle;
   CanvasTriangle filled_triangle;
 } state;
-
-
 
 int main(int argc, char *argv[]) {
   setup();
@@ -48,7 +43,10 @@ int main(int argc, char *argv[]) {
   }
 }
 
-void setup() { std::srand(0); }
+void setup() { 
+  // seed random state to be the same each time (for debugging)
+  std::srand(0); 
+}
 
 void draw() {
   // window.clearPixels();
@@ -88,7 +86,7 @@ void handleEvent(SDL_Event event) {
     }
     break;
   case SDL_MOUSEBUTTONDOWN:
-    std::cout << "MOUSE CLICKED" << endl;
+    std::cout << "MOUSE CLICKED" << std::endl;
     break;
   }
 }
