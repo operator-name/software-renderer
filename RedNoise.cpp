@@ -6,7 +6,7 @@
 #include "practical.hpp"
 
 #include <glm/glm.hpp>
-#include <glm/gtc/random.hpp>
+
 #include <glm/gtx/io.hpp>
 
 #include <cstdlib>
@@ -15,8 +15,8 @@
 using namespace std;
 using namespace glm;
 
-#define WIDTH 320
-#define HEIGHT 240
+#define WIDTH 320 * 2
+#define HEIGHT 240 * 2
 
 void setup();
 void draw();
@@ -26,7 +26,8 @@ void handleEvent(SDL_Event event);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 struct State {
-  CanvasTriangle triangle{CanvasPoint(0, 0), CanvasPoint(0, 0), CanvasPoint(0, 0)};
+  CanvasTriangle unfilled_triangle;
+  CanvasTriangle filled_triangle;
 } state;
 
 int main(int argc, char *argv[]) {
@@ -49,8 +50,6 @@ void setup() { std::srand(0); }
 
 void draw() {
   // window.clearPixels();
-
-  triangle(window, state.triangle);
 }
 
 void update() {
@@ -73,12 +72,16 @@ void handleEvent(SDL_Event event) {
     case SDLK_DOWN:
       std::cout << "DOWN" << std::endl;
       break;
+    case SDLK_c:
+      window.clearPixels();
+      break;
     case SDLK_u:
-      state.triangle.colour = Colour(glm::linearRand(0, 255), glm::linearRand(0, 255), glm::linearRand(0, 255));
-      for (auto &vertex: state.triangle.vertices) {
-        vertex.x = glm::linearRand(0, window.width-1);
-        vertex.y = glm::linearRand(0, window.height-1);
-      }
+      state.unfilled_triangle = randomtriangleinside(window);
+      linetriangle(window, state.unfilled_triangle);
+      break;
+    case SDLK_f:
+      state.filled_triangle = randomtriangleinside(window);
+      filledtriangle(window, state.filled_triangle);
       break;
     }
     break;

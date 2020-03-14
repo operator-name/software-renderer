@@ -59,5 +59,5 @@ window:
 # Files to remove during clean
 clean:
 	# rm $(WINDOW_OBJECT)
-	rm $(OBJECT_FILE)
-	rm $(EXECUTABLE)
+	rm -f $(OBJECT_FILE)
+	rm -f $(EXECUTABLE)
