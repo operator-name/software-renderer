@@ -24,13 +24,12 @@ std::vector<T> interpolate(T start, T end, std::size_t N) {
 
 // naive, why not one of these:
 // https://en.wikipedia.org/wiki/Line_drawing_algorithm
-void line(sdw::window window, glm::vec2 start, glm::vec2 end, Colour colour) {
+void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
+          Colour colour) {
   uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
                     (int(colour.green) << 8) + int(colour.blue);
-  size_t steps = glm::ceil(glm::compMax(glm::abs(end - start)));
-
-  for (auto const &p : interpolate(start, end, steps)) {
-    window.setPixelColour(glm::round(p.x), glm::round(p.y), packed);
+  for (auto const &p : glmt::naiveline(start, end)) {
+    window.setPixelColour(p.x, p.y, packed);
   }
 }
 

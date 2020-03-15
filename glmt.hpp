@@ -62,22 +62,23 @@ public:
 };
 template <typename T> class bound2 : public std::array<vec2<T>, 2> {};
 
-// template <typename T>
-// std::vector<glmt::vec2<glmt::px>> naiveline(glmt::vec2<T> start,
-//                                             glmt::vec2<T> end) {
-//   size_t steps = glm::compMax(glm::abs(end - start));
+typedef vec2<px> vec2p;
+typedef vec2<sc> vec2s;
 
-//   std::vector<glmt::vec2<glmt::px>> points;
-//   points.reserve(steps);
+template <typename T>
+std::vector<vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
+  size_t steps = glm::ceil(glm::compMax(glm::abs(end - start)));
 
-//   for (size_t i = 0; i < steps; i++) {
-//     glmt::vec2<glmt::px> mixed =
-//         glm::mix(start, end, static_cast<float>(i / steps));
-//     points.push_back(mixed);
-//   }
+  std::vector<vec2p> points;
+  points.reserve(steps);
 
-//   return points;
-// }
+  for (size_t i = 0; i < steps; i++) {
+    points.push_back(glm::round(glm::mix(glm::vec2(start), glm::vec2(end),
+                                         static_cast<sc>(i) / steps)));
+  }
+
+  return points;
+}
 } // namespace d2
 
 namespace parser {
