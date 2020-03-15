@@ -13,8 +13,9 @@
 #include <cstdlib>
 #include <fstream>
 
-#define WIDTH 320 * 2
-#define HEIGHT 240 * 2
+#define N 2
+#define WIDTH (320 * N)
+#define HEIGHT (240 * N)
 
 void setup();
 void draw();
@@ -26,6 +27,12 @@ sdw::window window;
 struct State {
   CanvasTriangle unfilled_triangle;
   CanvasTriangle filled_triangle;
+
+  struct ModelTriangle {
+    CanvasTriangle triangle;
+    CanvasTriangle texture;
+    glmt::PPM ppm;
+  } modeltriangle;
   glmt::PPM ppm;
 } state;
 
@@ -48,44 +55,26 @@ int main(int argc, char *argv[]) {
 void setup() {
   std::string path = "texture.ppm";
   std::ifstream texture(path.c_str());
-
-  std::string x;
-
   texture >> state.ppm;
   if (texture.fail()) {
     std::cerr << "Parsing PPM \"" << path << "\" failed" << std::endl;
   }
-  if (!texture.eof()) {
-    std::clog << "Parsing PPM \"" << path
-              << "\" has undefined characters after specificiation"
-              << std::endl;
-  }
-  std::cout << state.ppm.header << std::endl;
 
-  // exit(0);
+  state.modeltriangle.ppm = state.ppm;
+  state.modeltriangle.triangle = CanvasTriangle(
+      CanvasPoint(160, 10), CanvasPoint(300, 230), CanvasPoint(10, 150));
+  state.modeltriangle.texture = CanvasTriangle(
+      CanvasPoint(195, 5), CanvasPoint(395, 380), CanvasPoint(65, 330));
+
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
-  window = sdw::window(state.ppm.header.width, state.ppm.header.height, false);
-
-  for (int h = 0; h < window.height; h++) {
-    for (int w = 0; w < window.width; w++) {
-      // u v coordiantes
-      glm::vec3 c = state.ppm[glm::uvec2(w, h)];
-
-      float red = c.r * 255;
-      float green = c.g * 255;
-      float blue = c.b * 255;
-
-      uint32_t packed =
-          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-      window.setPixelColour(w, h, packed);
-    }
-  }
+  window = sdw::window(WIDTH, HEIGHT, false);
 }
 
 void draw() {
   // window.clearPixels();
+  linetriangle(window, state.modeltriangle.triangle);
 }
 
 void update() {
@@ -110,11 +99,15 @@ void handleEvent(SDL_Event event) {
       break;
     case SDLK_c:
       window.clearPixels();
+      break;
+    case SDLK_t:
       for (int h = 0; h < window.height; h++) {
         for (int w = 0; w < window.width; w++) {
-          float red = state.ppm[h][w].r * 255;
-          float green = state.ppm[h][w].g * 255;
-          float blue = state.ppm[h][w].b * 255;
+          // PPM::operator[] is GL_REPEAT by default
+          glm::ivec3 c = state.ppm[glm::ivec2(w, h)] * 255.0f;
+          float red = c.r;
+          float green = c.g;
+          float blue = c.b;
 
           uint32_t packed =
               (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);

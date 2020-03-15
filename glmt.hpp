@@ -180,7 +180,12 @@ public:
   using std::vector<std::vector<glm::vec3>>::operator[];
 
   parser::PPM_header header;
-  glm::vec3 &operator[](glm::uvec2 ix) { return (*this)[ix.y][ix.x]; }
+  glm::vec3 &operator[](glm::ivec2 ix) {
+    // GL_REPEAT
+    ix.x %= header.width;
+    ix.y %= header.height;
+    return (*this)[ix.y][ix.x];
+  }
   friend std::istream &operator>>(std::istream &input, PPM &ppm) {
     input >> ppm.header;
 
