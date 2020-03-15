@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/gtc/type_precision.hpp>
+#include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/io.hpp>
 
 #include <array>
@@ -9,13 +10,16 @@
 #include <istream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace glmt {
+
 inline namespace common {
 enum class COLOR_SPACE {
-  RBG_8,
-  FLOAT_0_1,
+  RBG888,
+  ARGB8888,
+  FLOAT01,
 };
 
 // TODO: different colour spaces
@@ -47,10 +51,34 @@ public:
 };
 } // namespace common
 
-namespace d2 {
-typedef glm::vec2 vec;
-typedef std::array<vec, 2> line;
-typedef std::array<vec, 3> triangle;
+inline namespace d2 {
+typedef glm::uvec2::value_type px;
+typedef glm::vec2::value_type sc;
+
+template <typename T> class vec2 : public glm::tvec2<T> {
+public:
+  using glm::tvec2<T>::tvec2;
+  vec2(glm::tvec2<T> vec2) : glm::tvec2<T>(vec2) {}
+};
+template <typename T> class bound2 : public std::array<vec2<T>, 2> {};
+
+// https://en.wikipedia.org/wiki/Line_drawing_algorithm
+// template <typename T>
+// std::vector<glmt::vec2<glmt::px>> naiveline(glmt::vec2<T> start,
+//                                             glmt::vec2<T> end) {
+//   size_t steps = glm::compMax(glm::abs(end - start));
+
+//   std::vector<glmt::vec2<glmt::px>> points;
+//   points.reserve(steps);
+
+//   for (size_t i = 0; i < steps; i++) {
+//     glmt::vec2<glmt::px> mixed =
+//         glm::mix(start, end, static_cast<float>(i / steps));
+//     points.push_back(mixed);
+//   }
+
+//   return points;
+// }
 } // namespace d2
 
 namespace parser {

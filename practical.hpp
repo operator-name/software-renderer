@@ -56,24 +56,28 @@ std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
   return result;
 }
 
+#include "glmt.hpp"
 #include <glm/gtx/component_wise.hpp>
 #include <sdw/Colour.h>
 #include <sdw/window.h>
 
 // naive, why not one of these:
-// https://en.wikipedia.org/wiki/Line_drawing_algorithm
 void line(sdw::window window, glm::vec2 start, glm::vec2 end, Colour colour) {
-  glm::vec2 diff = end - start;
-  float steps = glm::compMax(glm::abs(diff));
-  glm::vec2 step = diff / steps;
+  float steps = glm::compMax(glm::abs(end - start));
+
+  uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
+                    (int(colour.green) << 8) + int(colour.blue);
 
   for (float i = 0; i < steps; i++) {
-    glm::vec2 p = start + step * i;
+    glm::vec2 m = glm::mix(start, end, i / steps);
 
-    uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
-                      (int(colour.green) << 8) + int(colour.blue);
-    window.setPixelColour(glm::round(p.x), glm::round(p.y), packed);
+    window.setPixelColour(glm::round(m.x), glm::round(m.y), packed);
   }
+
+  // for (auto const &v : glmt::naiveline(glmt::vec2<glmt::sc>(start),
+  //                                      glmt::vec2<glmt::sc>(end))) {
+  //   window.setPixelColour(v.x, v.y, packed);
+  // }
 }
 
 void linetriangle(sdw::window window, CanvasTriangle triangle) {

@@ -77,7 +77,7 @@ void setup() {
 
 void draw() {
   // window.clearPixels();
-  linetriangle(window, state.modeltriangle.triangle);
+  // linetriangle(window, state.modeltriangle.triangle);
 }
 
 void update() {
