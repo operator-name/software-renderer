@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <vector>
 
 // strange lerp
@@ -13,6 +14,19 @@ std::vector<T> interpolate(T start, T end, std::size_t N) {
   for (std::size_t i = 0; i < N; i++) {
     result.push_back(glm::mix(start, end, static_cast<float>(i) / N));
   }
+
+  return result;
+}
+
+template <typename T>
+std::vector<glmt::vec2<T>> interpolate(glmt::vec2<T> start, glmt::vec2<T> end,
+                                       std::size_t N) {
+  auto v2i = interpolate(glm::vec2(start), glm::vec2(end), N);
+  std::vector<glmt::vec2<T>> result;
+  result.reserve(N);
+
+  std::transform(v2i.begin(), v2i.end(), std::back_inserter(result),
+                 [](glm::vec2 v) -> glmt::vec2<T> { return glmt::vec2<T>(v); });
 
   return result;
 }
@@ -60,9 +74,9 @@ CanvasTriangle randomtriangleinside(sdw::window window) {
 
 // assumes trangle.vertices[1].y == trangle.vertices[2].y
 void filledtriangleflat(sdw::window window, CanvasTriangle triangle) {
-  glm::vec2 top(triangle.vertices[0].x, triangle.vertices[0].y);
-  glm::vec2 bottom1(triangle.vertices[1].x, triangle.vertices[1].y);
-  glm::vec2 bottom2(triangle.vertices[2].x, triangle.vertices[2].y);
+  glmt::vec2s top(triangle.vertices[0].x, triangle.vertices[0].y);
+  glmt::vec2s bottom1(triangle.vertices[1].x, triangle.vertices[1].y);
+  glmt::vec2s bottom2(triangle.vertices[2].x, triangle.vertices[2].y);
 
   std::size_t dy = glm::ceil(glm::abs(bottom1.y - top.y));
 
@@ -74,6 +88,7 @@ void filledtriangleflat(sdw::window window, CanvasTriangle triangle) {
   for (size_t i = 0; i < dy; i++) {
     line(window, line1[i], line2[i], triangle.colour);
   }
+  linetriangle(window, triangle);
 }
 
 // why not barycentric coordinates
@@ -82,19 +97,18 @@ void filledtriangle(sdw::window window, CanvasTriangle triangle) {
   std::sort(std::begin(triangle.vertices), std::end(triangle.vertices),
             [](const glm::vec2 &a, const glm::vec2 &b) { return a.y < b.y; });
 
-  glm::vec2 top(triangle.vertices[0].x, triangle.vertices[0].y);
-  glm::vec2 mid(triangle.vertices[1].x, triangle.vertices[1].y);
-  glm::vec2 bot(triangle.vertices[2].x, triangle.vertices[2].y);
+  glmt::vec2s top(triangle.vertices[0].x, triangle.vertices[0].y);
+  glmt::vec2s mid(triangle.vertices[1].x, triangle.vertices[1].y);
+  glmt::vec2s bot(triangle.vertices[2].x, triangle.vertices[2].y);
 
-  glm::vec2 midi(top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x),
-                 mid.y);
+  glmt::vec2s midi(
+      top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x), mid.y);
 
   CanvasTriangle top_triangle(triangle.vertices[0], triangle.vertices[1], midi,
                               triangle.colour);
   CanvasTriangle bot_triangle(triangle.vertices[2], triangle.vertices[1], midi,
                               triangle.colour);
 
-  line(window, mid, midi, triangle.colour);
   filledtriangleflat(window, top_triangle);
   filledtriangleflat(window, bot_triangle);
 }
