@@ -5,7 +5,8 @@ stdenv.mkDerivation rec {
   src = ./.;
 
   buildInputs = with pkgs; [
-    # gdb
+    gcc_debug
+    gdb
     clang_9 # clang-format
     clang-tools
     SDL2

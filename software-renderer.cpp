@@ -3,6 +3,7 @@
 #include <sdw/Utils.h>
 #include <sdw/window.h>
 
+#include "glmt.hpp"
 #include "practical.hpp"
 
 #include <glm/glm.hpp>
@@ -20,11 +21,12 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 
-sdw::window window = sdw::window(WIDTH, HEIGHT, false);
+sdw::window window;
 
 struct State {
   CanvasTriangle unfilled_triangle;
   CanvasTriangle filled_triangle;
+  glmt::PPM ppm;
 } state;
 
 int main(int argc, char *argv[]) {
@@ -44,8 +46,39 @@ int main(int argc, char *argv[]) {
 }
 
 void setup() {
+  std::string path = "texture.ppm";
+  std::ifstream texture(path.c_str());
+
+  std::string x;
+
+  texture >> state.ppm;
+  if (texture.fail()) {
+    std::cerr << "Parsing PPM \"" << path << "\" failed" << std::endl;
+  }
+  if (!texture.eof()) {
+    std::clog << "Parsing PPM \"" << path
+              << "\" has undefined characters after specificiation"
+              << std::endl;
+  }
+  std::cout << state.ppm.header << std::endl;
+
+  // exit(0);
   // seed random state to be the same each time (for debugging)
+  // TODO: add proper random state
   std::srand(0);
+  window = sdw::window(state.ppm.header.width, state.ppm.header.height, false);
+
+  for (int h = 0; h < window.height; h++) {
+    for (int w = 0; w < window.width; w++) {
+      float red = state.ppm[h][w].r * 255;
+      float green = state.ppm[h][w].g * 255;
+      float blue = state.ppm[h][w].b * 255;
+
+      uint32_t packed =
+          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
+      window.setPixelColour(w, h, packed);
+    }
+  }
 }
 
 void draw() {
@@ -74,6 +107,17 @@ void handleEvent(SDL_Event event) {
       break;
     case SDLK_c:
       window.clearPixels();
+      for (int h = 0; h < window.height; h++) {
+        for (int w = 0; w < window.width; w++) {
+          float red = state.ppm[h][w].r * 255;
+          float green = state.ppm[h][w].g * 255;
+          float blue = state.ppm[h][w].b * 255;
+
+          uint32_t packed =
+              (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
+          window.setPixelColour(w, h, packed);
+        }
+      }
       break;
     case SDLK_u:
       state.unfilled_triangle = randomtriangleinside(window);
