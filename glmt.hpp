@@ -177,7 +177,10 @@ public:
 class PPM : public std::vector<std::vector<glm::vec3>> {
 
 public:
+  using std::vector<std::vector<glm::vec3>>::operator[];
+
   parser::PPM_header header;
+  glm::vec3 &operator[](glm::uvec2 ix) { return (*this)[ix.y][ix.x]; }
   friend std::istream &operator>>(std::istream &input, PPM &ppm) {
     input >> ppm.header;
 

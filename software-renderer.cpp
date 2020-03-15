@@ -70,9 +70,12 @@ void setup() {
 
   for (int h = 0; h < window.height; h++) {
     for (int w = 0; w < window.width; w++) {
-      float red = state.ppm[h][w].r * 255;
-      float green = state.ppm[h][w].g * 255;
-      float blue = state.ppm[h][w].b * 255;
+      // u v coordiantes
+      glm::vec3 c = state.ppm[glm::uvec2(w, h)];
+
+      float red = c.r * 255;
+      float green = c.g * 255;
+      float blue = c.b * 255;
 
       uint32_t packed =
           (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
