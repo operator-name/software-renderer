@@ -56,25 +56,23 @@ std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
   return result;
 }
 
+#include <glm/gtx/component_wise.hpp>
 #include <sdw/Colour.h>
 #include <sdw/window.h>
 
 // naive, why not one of these:
 // https://en.wikipedia.org/wiki/Line_drawing_algorithm
-void line(sdw::window window, CanvasPoint start, CanvasPoint end,
-          Colour colour) {
-  glm::vec2 diff{end.x - start.x, end.y - start.y};
-  float steps = glm::max(glm::abs(diff.x), glm::abs(diff.y));
-  glm::vec2 stepsize = diff / steps;
+void line(sdw::window window, glm::vec2 start, glm::vec2 end, Colour colour) {
+  glm::vec2 diff = end - start;
+  float steps = glm::compMax(glm::abs(diff));
+  glm::vec2 step = diff / steps;
 
   for (float i = 0; i < steps; i++) {
-
-    float x = start.x + stepsize.x * i;
-    float y = start.y + stepsize.y * i;
+    glm::vec2 p = start + step * i;
 
     uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
                       (int(colour.green) << 8) + int(colour.blue);
-    window.setPixelColour(glm::round(x), glm::round(y), packed);
+    window.setPixelColour(glm::round(p.x), glm::round(p.y), packed);
   }
 }
 
@@ -117,18 +115,15 @@ void filledtriangleflat(sdw::window window, CanvasTriangle triangle) {
   // well boost has it, but I'm not going to import boost just for this little
   // task
   for (size_t i = 0; i < dy; i++) {
-    CanvasPoint p1(line1[i].x, line1[i].y);
-    CanvasPoint p2(line2[i].x, line2[i].y);
-    line(window, p1, p2, triangle.colour);
+    line(window, line1[i], line2[i], triangle.colour);
   }
 }
 
 // why not barycentric coordinates
 // http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
 void filledtriangle(sdw::window window, CanvasTriangle triangle) {
-  std::sort(
-      std::begin(triangle.vertices), std::end(triangle.vertices),
-      [](const CanvasPoint &a, const CanvasPoint &b) { return a.y < b.y; });
+  std::sort(std::begin(triangle.vertices), std::end(triangle.vertices),
+            [](const glm::vec2 &a, const glm::vec2 &b) { return a.y < b.y; });
 
   glm::vec2 top(triangle.vertices[0].x, triangle.vertices[0].y);
   glm::vec2 mid(triangle.vertices[1].x, triangle.vertices[1].y);
@@ -137,10 +132,10 @@ void filledtriangle(sdw::window window, CanvasTriangle triangle) {
   glm::vec2 midi(top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x),
                  mid.y);
 
-  CanvasTriangle top_triangle(triangle.vertices[0], triangle.vertices[1],
-                              CanvasPoint(midi.x, midi.y), triangle.colour);
-  CanvasTriangle bot_triangle(triangle.vertices[2], triangle.vertices[1],
-                              CanvasPoint(midi.x, midi.y), triangle.colour);
+  CanvasTriangle top_triangle(triangle.vertices[0], triangle.vertices[1], midi,
+                              triangle.colour);
+  CanvasTriangle bot_triangle(triangle.vertices[2], triangle.vertices[1], midi,
+                              triangle.colour);
 
   filledtriangleflat(window, top_triangle);
   filledtriangleflat(window, bot_triangle);

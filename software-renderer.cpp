@@ -36,6 +36,9 @@ struct State {
   glmt::PPM ppm;
 } state;
 
+// assumes trangle.vertices[1].y == trangle.vertices[2].y
+void texturedtriangleflat(sdw::window window, ModelTriangle model) {}
+
 int main(int argc, char *argv[]) {
   setup();
 
@@ -62,9 +65,9 @@ void setup() {
 
   state.modeltriangle.ppm = state.ppm;
   state.modeltriangle.triangle = CanvasTriangle(
-      CanvasPoint(160, 10), CanvasPoint(300, 230), CanvasPoint(10, 150));
+      glm::vec2(160, 10), glm::vec2(300, 230), glm::vec2(10, 150));
   state.modeltriangle.texture = CanvasTriangle(
-      CanvasPoint(195, 5), CanvasPoint(395, 380), CanvasPoint(65, 330));
+      glm::vec2(195, 5), glm::vec2(395, 380), glm::vec2(65, 330));
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
