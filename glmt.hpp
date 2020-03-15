@@ -62,7 +62,6 @@ public:
 };
 template <typename T> class bound2 : public std::array<vec2<T>, 2> {};
 
-// https://en.wikipedia.org/wiki/Line_drawing_algorithm
 // template <typename T>
 // std::vector<glmt::vec2<glmt::px>> naiveline(glmt::vec2<T> start,
 //                                             glmt::vec2<T> end) {

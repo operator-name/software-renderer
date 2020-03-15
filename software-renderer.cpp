@@ -72,7 +72,7 @@ void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
-  window = sdw::window(WIDTH, HEIGHT, false);
+  window = sdw::window(WIDTH, HEIGHT, true);
 }
 
 void draw() {

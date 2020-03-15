@@ -7,50 +7,11 @@
 // strange lerp
 template <typename T>
 std::vector<T> interpolate(T start, T end, std::size_t N) {
-  std::vector<T> result(N);
-  T step = (end - start) / std::max(N - 1, static_cast<size_t>(1));
+  std::vector<T> result;
+  result.reserve(N);
 
   for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * i;
-  }
-
-  return result;
-}
-template <typename T>
-std::vector<glm::tvec2<T>> interpolate(glm::tvec2<T> start, glm::tvec2<T> end,
-                                       std::size_t N) {
-  std::vector<glm::tvec2<T>> result(N);
-  glm::tvec2<T> step =
-      (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
-  }
-
-  return result;
-}
-template <typename T>
-std::vector<glm::tvec3<T>> interpolate(glm::tvec3<T> start, glm::tvec3<T> end,
-                                       std::size_t N) {
-  std::vector<glm::tvec3<T>> result(N);
-  glm::tvec3<T> step =
-      (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
-  }
-
-  return result;
-}
-template <typename T>
-std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
-                                       std::size_t N) {
-  std::vector<glm::tvec2<T>> result(N);
-  glm::tvec4<T> step =
-      (end - start) / static_cast<T>(std::max(N - 1, static_cast<size_t>(1)));
-
-  for (std::size_t i = 0; i < N; i++) {
-    result[i] = start + step * static_cast<T>(i);
+    result.push_back(glm::mix(start, end, static_cast<float>(i) / N));
   }
 
   return result;
@@ -62,22 +23,15 @@ std::vector<glm::tvec4<T>> interpolate(glm::tvec4<T> start, glm::tvec4<T> end,
 #include <sdw/window.h>
 
 // naive, why not one of these:
+// https://en.wikipedia.org/wiki/Line_drawing_algorithm
 void line(sdw::window window, glm::vec2 start, glm::vec2 end, Colour colour) {
-  float steps = glm::compMax(glm::abs(end - start));
-
   uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
                     (int(colour.green) << 8) + int(colour.blue);
+  size_t steps = glm::ceil(glm::compMax(glm::abs(end - start)));
 
-  for (float i = 0; i < steps; i++) {
-    glm::vec2 m = glm::mix(start, end, i / steps);
-
-    window.setPixelColour(glm::round(m.x), glm::round(m.y), packed);
+  for (auto const &p : interpolate(start, end, steps)) {
+    window.setPixelColour(glm::round(p.x), glm::round(p.y), packed);
   }
-
-  // for (auto const &v : glmt::naiveline(glmt::vec2<glmt::sc>(start),
-  //                                      glmt::vec2<glmt::sc>(end))) {
-  //   window.setPixelColour(v.x, v.y, packed);
-  // }
 }
 
 void linetriangle(sdw::window window, CanvasTriangle triangle) {
@@ -111,7 +65,7 @@ void filledtriangleflat(sdw::window window, CanvasTriangle triangle) {
   glm::vec2 bottom1(triangle.vertices[1].x, triangle.vertices[1].y);
   glm::vec2 bottom2(triangle.vertices[2].x, triangle.vertices[2].y);
 
-  std::size_t dy = glm::abs(bottom1.y - top.y) + 2;
+  std::size_t dy = glm::ceil(glm::abs(bottom1.y - top.y));
 
   auto line1 = interpolate(top, bottom1, dy);
   auto line2 = interpolate(top, bottom2, dy);
@@ -141,6 +95,7 @@ void filledtriangle(sdw::window window, CanvasTriangle triangle) {
   CanvasTriangle bot_triangle(triangle.vertices[2], triangle.vertices[1], midi,
                               triangle.colour);
 
+  line(window, mid, midi, triangle.colour);
   filledtriangleflat(window, top_triangle);
   filledtriangleflat(window, bot_triangle);
 }
