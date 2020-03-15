@@ -53,6 +53,7 @@ public:
 
 inline namespace d2 {
 typedef glm::uvec2::value_type px; // pixel space
+typedef glm::ivec2::value_type uv; // texture space
 typedef glm::vec2::value_type sc;  // screen space
 
 template <typename T> class vec2 : public glm::tvec2<T> {
@@ -64,21 +65,6 @@ template <typename T> class bound2 : public std::array<vec2<T>, 2> {};
 
 typedef vec2<px> vec2p; // pixel space vec2
 typedef vec2<sc> vec2s; // screen space vec2
-
-template <typename T>
-std::vector<vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
-  size_t steps = glm::ceil(glm::compMax(glm::abs(end - start)));
-
-  std::vector<vec2p> points;
-  points.reserve(steps);
-
-  for (size_t i = 0; i < steps; i++) {
-    points.push_back(/*glm::round*/ (glm::mix(glm::vec2(start), glm::vec2(end),
-                                              static_cast<sc>(i) / steps)));
-  }
-
-  return points;
-}
 } // namespace d2
 
 namespace parser {
@@ -208,7 +194,7 @@ public:
   using std::vector<std::vector<glm::vec3>>::operator[];
 
   parser::PPM_header header;
-  glm::vec3 &operator[](glm::ivec2 ix) {
+  glm::vec3 &operator[](glmt::vec2<glmt::uv> ix) {
     // GL_REPEAT
     ix.x %= header.width;
     ix.y %= header.height;

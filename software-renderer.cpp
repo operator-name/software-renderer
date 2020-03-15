@@ -25,19 +25,20 @@ void handleEvent(SDL_Event event);
 sdw::window window;
 
 struct State {
-  CanvasTriangle unfilled_triangle;
-  CanvasTriangle filled_triangle;
+  std::tuple<std::array<glmt::vec2s, 3>, Colour> unfilled_triangle;
+  std::tuple<std::array<glmt::vec2s, 3>, Colour> filled_triangle;
 
   struct ModelTriangle {
-    CanvasTriangle triangle;
-    CanvasTriangle texture;
+    std::array<glmt::vec2s, 3> triangle;
+    std::array<glmt::vec2s, 3> texture;
     glmt::PPM ppm;
   } modeltriangle;
+
   glmt::PPM ppm;
 } state;
 
 // assumes trangle.vertices[1].y == trangle.vertices[2].y
-void texturedtriangleflat(sdw::window window, ModelTriangle model) {}
+// void texturedtriangleflat(sdw::window window, ModelTriangle model) {}
 
 int main(int argc, char *argv[]) {
   setup();
@@ -64,10 +65,10 @@ void setup() {
   }
 
   state.modeltriangle.ppm = state.ppm;
-  state.modeltriangle.triangle = CanvasTriangle(
-      glm::vec2(160, 10), glm::vec2(300, 230), glm::vec2(10, 150));
-  state.modeltriangle.texture = CanvasTriangle(
-      glm::vec2(195, 5), glm::vec2(395, 380), glm::vec2(65, 330));
+  state.modeltriangle.triangle = std::array<glmt::vec2s, 3>{
+      glm::vec2(160, 10), glm::vec2(300, 230), glm::vec2(10, 150)};
+  state.modeltriangle.texture = std::array<glmt::vec2s, 3>{
+      glm::vec2(195, 5), glm::vec2(395, 380), glm::vec2(65, 330)};
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
@@ -77,7 +78,10 @@ void setup() {
 
 void draw() {
   // window.clearPixels();
-  // linetriangle(window, state.modeltriangle.triangle);
+  linetriangle(
+      window, std::make_tuple(state.modeltriangle.triangle, Colour(255, 0, 0)));
+  linetriangle(window,
+               std::make_tuple(state.modeltriangle.texture, Colour(0, 255, 0)));
 }
 
 void update() {
