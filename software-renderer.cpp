@@ -1,4 +1,3 @@
-#include <sdw/CanvasTriangle.h>
 #include <sdw/ModelTriangle.h>
 #include <sdw/Utils.h>
 #include <sdw/window.h>
@@ -23,6 +22,7 @@ void update();
 void handleEvent(SDL_Event event);
 
 sdw::window window;
+sdw::window texture_d;
 
 struct State {
   std::tuple<std::array<glmt::vec2s, 3>, Colour> unfilled_triangle;
@@ -30,7 +30,7 @@ struct State {
 
   struct ModelTriangle {
     std::array<glmt::vec2s, 3> triangle;
-    std::array<glmt::vec2s, 3> texture;
+    std::array<glmt::vec2t, 3> texture;
     glmt::PPM ppm;
   } modeltriangle;
 
@@ -67,21 +67,44 @@ void setup() {
   state.modeltriangle.ppm = state.ppm;
   state.modeltriangle.triangle = std::array<glmt::vec2s, 3>{
       glm::vec2(160, 10), glm::vec2(300, 230), glm::vec2(10, 150)};
-  state.modeltriangle.texture = std::array<glmt::vec2s, 3>{
+  state.modeltriangle.texture = std::array<glmt::vec2t, 3>{
       glm::vec2(195, 5), glm::vec2(395, 380), glm::vec2(65, 330)};
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
   window = sdw::window(WIDTH, HEIGHT, false);
+  texture_d =
+      sdw::window(state.modeltriangle.ppm.header.width,
+                  state.modeltriangle.ppm.header.height, false, "texture.ppm");
+  for (int h = 0; h < texture_d.height; h++) {
+    for (int w = 0; w < texture_d.width; w++) {
+      // PPM::operator[] is GL_REPEAT by default
+      glm::ivec3 c = state.ppm[glm::ivec2(w, h)] * 255.0f;
+      float red = c.r;
+      float green = c.g;
+      float blue = c.b;
+
+      uint32_t packed =
+          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
+      texture_d.setPixelColour(w, h, packed);
+    }
+  }
+  // unwrap texture space to screen space
+  std::array<glmt::vec2s, 3> texture_s{
+      glm::vec2(state.modeltriangle.texture[0]),
+      glm::vec2(state.modeltriangle.texture[1]),
+      glm::vec2(state.modeltriangle.texture[2])};
+  linetriangle(texture_d, std::make_tuple(texture_s, Colour(0, 255, 0)));
+  texture_d.renderFrame();
 }
 
 void draw() {
   // window.clearPixels();
+  texturedtriangle(window, state.modeltriangle.triangle,
+                   state.modeltriangle.texture, state.modeltriangle.ppm);
   linetriangle(
       window, std::make_tuple(state.modeltriangle.triangle, Colour(255, 0, 0)));
-  linetriangle(window,
-               std::make_tuple(state.modeltriangle.texture, Colour(0, 255, 0)));
 }
 
 void update() {
@@ -107,21 +130,9 @@ void handleEvent(SDL_Event event) {
     case SDLK_c:
       window.clearPixels();
       break;
-    case SDLK_t:
-      for (int h = 0; h < window.height; h++) {
-        for (int w = 0; w < window.width; w++) {
-          // PPM::operator[] is GL_REPEAT by default
-          glm::ivec3 c = state.ppm[glm::ivec2(w, h)] * 255.0f;
-          float red = c.r;
-          float green = c.g;
-          float blue = c.b;
+    case SDLK_b: {
 
-          uint32_t packed =
-              (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-          window.setPixelColour(w, h, packed);
-        }
-      }
-      break;
+    } break;
     case SDLK_u:
       state.unfilled_triangle = randomtriangleinside(window);
       linetriangle(window, state.unfilled_triangle);

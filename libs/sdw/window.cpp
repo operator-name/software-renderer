@@ -8,7 +8,7 @@ namespace sdw {
 window::window() {}
 
 // Complex constructor method
-window::window(int w, int h, bool fullscreen) {
+window::window(int w, int h, bool fullscreen, std::string title) {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
     printMessageAndQuit("Could not initialise SDL: ", SDL_GetError());
   }
@@ -23,7 +23,7 @@ window::window(int w, int h, bool fullscreen) {
     flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
   int ANYWHERE = SDL_WINDOWPOS_UNDEFINED;
   _window =
-      SDL_CreateWindow("COMS30115", ANYWHERE, ANYWHERE, width, height, flags);
+      SDL_CreateWindow(title.c_str(), ANYWHERE, ANYWHERE, width, height, flags);
   if (_window == 0)
     printMessageAndQuit("Could not set video mode: ", SDL_GetError());
 

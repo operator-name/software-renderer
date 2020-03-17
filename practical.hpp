@@ -128,3 +128,47 @@ void filledtriangle(sdw::window window,
   filledtriangleflat(window, top, mid, midi, colour);
   filledtriangleflat(window, bot, mid, midi, colour);
 }
+
+glm::mat3 barycentric(std::array<glm::vec2, 3> t) {
+  glm::vec3 t0 = glm::vec3(t[0], 1.0);
+  glm::vec3 t1 = glm::vec3(t[1], 1.0);
+  glm::vec3 t2 = glm::vec3(t[2], 1.0);
+  glm::mat3 R(t0, t1, t2);
+
+  return glm::inverse(R);
+}
+glm::vec3 barycentric(glm::vec2 p, std::array<glm::vec2, 3> t) {
+  return barycentric(t) * glm::vec3(p, 1.0);
+}
+template <typename T>
+glm::vec3 barycentric(glmt::vec2<T> p, std::array<glmt::vec2<T>, 3> t) {
+  std::array<glm::vec2, 3> triangle{t[0], t[1], t[2]};
+  return barycentric(p, triangle);
+}
+
+void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
+                      std::array<glmt::vec2t, 3> tex, glmt::PPM ppm) {
+  glmt::bound2<glmt::sc> bounds(tri.begin(), tri.end());
+  // TODO: glmt::bound2::operator+ // largest bound which fits both
+  // TODO: glmt::bound2::operator- // smallest bound which fits both
+  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
+  bounds.max =
+      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+
+  for (int y = bounds.min.y; y <= bounds.max.y; y++) {
+    for (int x = bounds.min.x; x <= bounds.max.x; x++) {
+      glm::vec3 bc = barycentric(glmt::vec2s(x, y), tri);
+      if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) {
+        continue;
+      }
+
+      glmt::vec2t tx = bc[0] * glm::vec2(tex[0]) + bc[1] * glm::vec2(tex[1]) +
+                       bc[2] * glm::vec2(tex[2]);
+      glm::ivec3 c = ppm[tx] * 255.0f;
+
+      uint32_t packed =
+          (255 << 24) + (int(c.r) << 16) + (int(c.g) << 8) + int(c.b);
+      window.setPixelColour(x, y, packed);
+    }
+  }
+}

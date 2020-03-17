@@ -8,6 +8,8 @@
 #include <cctype>
 #include <iostream>
 #include <istream>
+#include <limits>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -61,10 +63,29 @@ public:
   using glm::tvec2<T>::tvec2;
   vec2(glm::tvec2<T> vec2) : glm::tvec2<T>(vec2) {}
 };
-template <typename T> class bound2 : public std::array<vec2<T>, 2> {};
+template <typename T> class bound2 {
+public:
+  vec2<T> min;
+  vec2<T> max;
+  template <typename Iter> bound2(Iter begin, Iter end) {
+    std::array<vec2<T>, 2> minmax{vec2<T>(std::numeric_limits<T>::max()),
+                                  vec2<T>(std::numeric_limits<T>::lowest())};
+    minmax = std::accumulate(
+        begin, end, minmax, [](std::array<vec2<T>, 2> acc, vec2<T> v) {
+          acc[0] = glm::min(static_cast<glm::tvec2<T>>(acc[0]),
+                            static_cast<glm::tvec2<T>>(v));
+          acc[1] = glm::max(static_cast<glm::tvec2<T>>(acc[1]),
+                            static_cast<glm::tvec2<T>>(v));
+          return acc;
+        });
+    min = minmax[0];
+    max = minmax[1];
+  }
+};
 
 typedef vec2<px> vec2p; // pixel space vec2
 typedef vec2<sc> vec2s; // screen space vec2
+typedef vec2<uv> vec2t; // texture spac vec2
 } // namespace d2
 
 namespace parser {
@@ -188,34 +209,34 @@ public:
 
 } // namespace parser
 // http://netpbm.sourceforge.net/doc/ppm.html
-class PPM : public std::vector<std::vector<glm::vec3>> {
+class PPM {
+protected:
+  std::vector<glm::vec3> _body;
 
 public:
-  using std::vector<std::vector<glm::vec3>>::operator[];
-
   parser::PPM_header header;
   glm::vec3 &operator[](glmt::vec2<glmt::uv> ix) {
     // GL_REPEAT
     ix.x %= header.width;
     ix.y %= header.height;
-    return (*this)[ix.y][ix.x];
+    return _body[ix.y * header.width + ix.x];
   }
   friend std::istream &operator>>(std::istream &input, PPM &ppm) {
     input >> ppm.header;
-
-    ppm.reserve(ppm.header.height);
+    ppm._body.reserve(ppm.header.height * ppm.header.width);
 
     for (size_t h = 0; h < ppm.header.height; h++) {
-      ppm[h].reserve(ppm.header.width);
       for (size_t w = 0; w < ppm.header.width; w++) {
         if (ppm.header.maxval < 256) {
           parser::rgb<1> c;
           input >> c;
-          ppm[h][w] = glm::vec3(c) / static_cast<float>(ppm.header.maxval);
+          ppm._body.push_back(glm::vec3(c) /
+                              static_cast<float>(ppm.header.maxval));
         } else {
           parser::rgb<2> c;
           input >> c;
-          ppm[h][w] = glm::vec3(c) / static_cast<float>(ppm.header.maxval);
+          ppm._body.push_back(glm::vec3(c) /
+                              static_cast<float>(ppm.header.maxval));
         }
       }
     }

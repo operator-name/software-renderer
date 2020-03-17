@@ -1,5 +1,6 @@
 #pragma once
 #include "SDL.h"
+#include <string>
 
 namespace sdw {
 
@@ -17,7 +18,7 @@ public:
 
   // Constructor method
   window();
-  window(int w, int h, bool fullscreen);
+  window(int w, int h, bool fullscreen, std::string title = "COMS30115");
   void destroy();
   void renderFrame();
   bool pollForInputEvents(SDL_Event *event);
