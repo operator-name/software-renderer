@@ -68,7 +68,7 @@ run: $(EXECUTABLE)
 	./$(EXECUTABLE)
 
 dev:
-	clang-format -i *.*pp
+	clang-format --style="{NamespaceIndentation: All}" -i *.*pp
 	clear
 	make debug
 	make run 	
