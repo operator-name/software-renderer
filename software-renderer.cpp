@@ -57,11 +57,31 @@ int main(int argc, char *argv[]) {
 }
 
 void setup() {
+  {
+    std::string path = "cornell-box.mtl";
+    std::ifstream material(path.c_str());
+    glmt::MTL mtl;
+    material >> mtl;
+
+    std::string rest((std::istreambuf_iterator<char>(material)),
+                     std::istreambuf_iterator<char>());
+
+    std::cout << "[+REST]" << std::endl
+              << rest << std::endl
+              << "[-REST]" << std::endl;
+    exit(1);
+  }
+
   std::string path = "texture.ppm";
   std::ifstream texture(path.c_str());
   texture >> state.ppm;
   if (texture.fail()) {
     std::cerr << "Parsing PPM \"" << path << "\" failed" << std::endl;
+  }
+  texture.peek();
+  if (!texture.eof()) {
+    std::cerr << "PPM \"" << path << "\" has extra data past specification"
+              << std::endl;
   }
 
   state.modeltriangle.ppm = state.ppm;

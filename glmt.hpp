@@ -9,6 +9,7 @@
 #include <iostream>
 #include <istream>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <sstream>
 #include <string>
@@ -21,40 +22,8 @@ namespace glmt {
     enum class COLOR_SPACE {
       RGB888,
       RGBA8888,
-      FLOAT01,
+      RBGFLOAT01,
     };
-
-    typedef float float01;
-
-    // TODO: different colour spaces
-    // template <COLOR_SPACE c>
-    // class colour : public glm::vec3 {
-    // private:
-    //   std::string _name;
-
-    // protected:
-    //   void _gen_name() {
-    //     std::ostringstream stream;
-    //     stream << *this << " : colour";
-    //     _name = stream.str();
-    //   }
-
-    // public:
-    //   using glm::vec3::vec3;
-
-    //   colour(glm::vec3 colour) : glm::vec3(colour) { _gen_name(); }
-    //   colour(glm::vec3 colour, std::string name) : glm::vec3(colour) {
-    //     _name = name;
-    //   }
-
-    //   std::string name() {
-    //     if (_name.empty()) {
-    //       _gen_name();
-    //     }
-    //     return _name;
-    //   }
-    // };
-    namespace {}
 
     template <COLOR_SPACE c> class colour {
     private:
@@ -77,8 +46,10 @@ namespace glmt {
         return c.argb8888();
       }
     };
-    template <> class colour<COLOR_SPACE::FLOAT01> : public glm::vec3 {
+    template <> class colour<COLOR_SPACE::RBGFLOAT01> : public glm::vec3 {
     public:
+      using glm::vec3::vec3;
+      colour(glm::vec3 v) : glm::vec3(v){};
       uint32_t argb8888() {
         colour<COLOR_SPACE::RGB888> c(*this * 255.f);
         return c.argb8888();
@@ -242,7 +213,121 @@ namespace glmt {
       }
     };
 
+    // http://paulbourke.net/dataformats/mtl/
+
+    class ws_until {
+    protected:
+      std::string _matches;
+
+    public:
+      ws_until(std::string chs) { _matches = chs; }
+
+      friend std::istream &operator>>(std::istream &input, ws_until empty) {
+        while (empty._matches.find(input.peek()) == std::string::npos) {
+
+          if (isspace(input.peek())) {
+            input.get();
+          } else {
+            input.setstate(std::ios::failbit);
+            break;
+          }
+        }
+        return input;
+      }
+    };
+
+    class MTL_colour {
+    public:
+      colour<COLOR_SPACE::RBGFLOAT01> rgb;
+      friend std::istream &operator>>(std::istream &input, MTL_colour &colour) {
+        switch (input.peek()) {
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+          float r;
+          float g;
+          float b;
+          input >> r >> g >> b;
+          colour.rgb = glm::vec3(r, g, b);
+          break;
+        case 's':
+        case 'x':
+        default:
+          input.setstate(std::ios::failbit);
+          std::string kw;
+          input >> kw;
+          std::cout << ".mtl parser does not support colour argument \"" << kw
+                    << "\"" << std::endl;
+          break;
+        }
+        return input;
+      }
+    };
+
+    // http://paulbourke.net/dataformats/mtl/
+    class MTL_newmtl {
+    public:
+      std::string name;
+      // MTL_colour Ka; // ambient
+      MTL_colour Kd; // diffuse
+      // MTL_colour Ks; // specular
+      // float Ns;      // specular exponent
+
+      friend std::istream &operator>>(std::istream &input, MTL_newmtl &newmtl) {
+        input >> ch<'n'>() >> ch<'e'>() >> ch<'w'>() >> ch<'m'>() >>
+            ch<'t'>() >> ch<'l'>() >> ch<' '>() >> newmtl.name >> ch<'\n'>();
+        do {
+          input >> ws_until("KTidNsmbrn");
+          switch (input.peek()) {
+          case 'n':
+            break;
+          case 'K': {
+            input >> ch<'K'>();
+            switch (input.peek()) {
+            case 'd':
+              input >> ch<'d'>() >> ws() >> newmtl.Kd;
+              break;
+            default:
+              input.setstate(std::ios::failbit);
+              std::cout << ".mtl parser does not support statement \"K"
+                        << static_cast<char>(input.get()) << "\"" << std::endl;
+              break;
+            }
+            break;
+          }
+          default: {
+            input.setstate(std::ios::failbit);
+            std::string kw;
+            input >> kw;
+            std::cout << ".mtl parser does not support statement \"" << kw
+                      << "\"" << std::endl;
+            break;
+          }
+          }
+        } while (input.peek() != 'n' && !input.fail());
+
+        return input;
+      }
+
+      friend std::ostream &operator<<(std::ostream &output,
+                                      const MTL_newmtl &newmtl) {
+        output << "MTL_newmtl { "
+               << ".name = " << newmtl.name << ", "
+               << ".Kd = " << newmtl.Kd.rgb << " }";
+
+        return output;
+      }
+    };
+
   } // namespace parser
+
   // http://netpbm.sourceforge.net/doc/ppm.html
   class PPM {
   protected:
@@ -279,4 +364,30 @@ namespace glmt {
       return input;
     }
   };
+
+  class MTL {
+  protected:
+    std::map<std::string, parser::MTL_newmtl> _newmtls;
+
+  public:
+    // careful, this creates new items if mtlname is not in the map
+    parser::MTL_newmtl &operator[](std::string mtlname) {
+      return _newmtls[mtlname];
+    }
+    friend std::istream &operator>>(std::istream &input, MTL &mtl) {
+      while (!input.eof() && !input.fail()) {
+        parser::MTL_newmtl m;
+        input >> m;
+
+        mtl._newmtls.emplace(m.name, m);
+        std::cout << m << std::endl;
+        std::cout << input.fail();
+
+        std::cin.get();
+      }
+
+      return input;
+    }
+  };
+
 } // namespace glmt
