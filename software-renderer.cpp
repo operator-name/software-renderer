@@ -56,19 +56,44 @@ int main(int argc, char *argv[]) {
   }
 }
 
+glmt::PPM parse_ppm(const std::string filename) {
+  glmt::PPM ppm;
+  std::ifstream file(filename.c_str());
+
+  file >> ppm;
+
+  if (file.fail()) {
+    std::cerr << "Parsing PPM \"" << filename << "\" failed" << std::endl;
+  }
+  if (file.peek(), !file.eof()) {
+    std::clog << "PPM \"" << filename << "\" has extra data past specification"
+              << std::endl;
+  }
+
+  return ppm;
+}
+
+glmt::MTL parse_mtl(const std::string filename) {
+  glmt::MTL mtl;
+  std::ifstream file(filename.c_str());
+
+  file >> mtl;
+
+  if (file.fail()) {
+    std::cerr << "Parsing MTL \"" << filename << "\" failed" << std::endl;
+  }
+  if (file.peek(), !file.eof()) {
+    std::clog << "MTL \"" << filename
+              << "\" parsing did not consume entire file" << std::endl;
+  }
+
+  return mtl;
+}
+
 void setup() {
   {
-    std::string path = "cornell-box.mtl";
-    std::ifstream material(path.c_str());
-    glmt::MTL mtl;
-    material >> mtl;
-
-    std::string rest((std::istreambuf_iterator<char>(material)),
-                     std::istreambuf_iterator<char>());
-
-    std::cout << "[+REST]" << std::endl
-              << rest << std::endl
-              << "[-REST]" << std::endl;
+    glmt::MTL mtl = parse_mtl("cornell-box.mtl");
+    std::cout << mtl << std::endl;
     exit(1);
   }
 
@@ -78,8 +103,7 @@ void setup() {
   if (texture.fail()) {
     std::cerr << "Parsing PPM \"" << path << "\" failed" << std::endl;
   }
-  texture.peek();
-  if (!texture.eof()) {
+  if (texture.peek(), !texture.eof()) {
     std::cerr << "PPM \"" << path << "\" has extra data past specification"
               << std::endl;
   }

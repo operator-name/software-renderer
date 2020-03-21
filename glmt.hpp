@@ -311,7 +311,7 @@ namespace glmt {
             break;
           }
           }
-        } while (input.peek() != 'n' && !input.fail());
+        } while (!input.eof() && !input.fail() && input.peek() != 'n');
 
         return input;
       }
@@ -380,13 +380,18 @@ namespace glmt {
         input >> m;
 
         mtl._newmtls.emplace(m.name, m);
-        std::cout << m << std::endl;
-        std::cout << input.fail();
-
-        std::cin.get();
       }
 
       return input;
+    }
+    friend std::ostream &operator<<(std::ostream &output, const MTL &mtl) {
+      output << "MTL [ ";
+      for (const auto &newmtl : mtl._newmtls) {
+        output << newmtl.second << ", ";
+      }
+      output << "]";
+
+      return output;
     }
   };
 
