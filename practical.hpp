@@ -33,7 +33,6 @@ std::vector<glmt::vec2<T>> interpolate(glmt::vec2<T> start, glmt::vec2<T> end,
 
 #include "glmt.hpp"
 #include <glm/gtx/component_wise.hpp>
-#include <sdw/Colour.h>
 #include <sdw/window.h>
 
 // naive, why not one of these:
@@ -51,20 +50,21 @@ std::vector<glmt::vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
   return points;
 }
 
+template <glmt::COLOR_SPACE CS>
 void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
-          Colour colour) {
-  uint32_t packed = (255 << 24) + (int(colour.red) << 16) +
-                    (int(colour.green) << 8) + int(colour.blue);
+          glmt::colour<CS> colour) {
   for (auto const &p : naiveline(start, end)) {
-    window.setPixelColour(p.x, p.y, packed);
+    window.setPixelColour(p.x, p.y, colour.argb8888());
   }
 }
 
 #include <array>
 #include <tuple>
 
-void linetriangle(sdw::window window,
-                  std::tuple<std::array<glmt::vec2s, 3>, Colour> triangle) {
+template <glmt::COLOR_SPACE CS>
+void linetriangle(
+    sdw::window window,
+    std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
   line(window, std::get<0>(triangle)[0], std::get<0>(triangle)[1],
        std::get<1>(triangle));
   line(window, std::get<0>(triangle)[1], std::get<0>(triangle)[2],
@@ -75,10 +75,11 @@ void linetriangle(sdw::window window,
 
 #include <glm/gtc/random.hpp>
 
-std::tuple<std::array<glmt::vec2s, 3>, Colour>
+std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<glmt::COLOR_SPACE::RGB888>>
 randomtriangleinside(sdw::window window) {
-  Colour colour(glm::linearRand(0, 255), glm::linearRand(0, 255),
-                glm::linearRand(0, 255));
+  glmt::colour<glmt::COLOR_SPACE::RGB888> colour(glm::linearRand(0, 255),
+                                                 glm::linearRand(0, 255),
+                                                 glm::linearRand(0, 255));
   std::array<glmt::vec2s, 3> points{
       glmt::vec2s(glm::linearRand<float>(0, window.width - 1),
                   glm::linearRand<float>(0, window.height - 1)),
@@ -92,9 +93,10 @@ randomtriangleinside(sdw::window window) {
 
 #include <algorithm>
 
+template <glmt::COLOR_SPACE CS>
 void filledtriangleflat(sdw::window window, glmt::vec2s top,
                         glmt::vec2s bottom1, glmt::vec2s bottom2,
-                        Colour colour) {
+                        glmt::colour<CS> colour) {
   // assumes bottom1.y == bottom2.y
 
   std::size_t dy = glm::ceil(glm::abs(bottom1.y - top.y)) + 1;
@@ -111,8 +113,10 @@ void filledtriangleflat(sdw::window window, glmt::vec2s top,
 
 // why not barycentric coordinates
 // http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
-void filledtriangle(sdw::window window,
-                    std::tuple<std::array<glmt::vec2s, 3>, Colour> triangle) {
+template <glmt::COLOR_SPACE CS>
+void filledtriangle(
+    sdw::window window,
+    std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
   std::sort(std::begin(std::get<0>(triangle)), std::end(std::get<0>(triangle)),
             [](const glm::vec2 a, const glm::vec2 b) { return a.y < b.y; });
 
@@ -122,7 +126,7 @@ void filledtriangle(sdw::window window,
   glmt::vec2s midi(
       top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x), mid.y);
 
-  Colour colour = std::get<1>(triangle);
+  glmt::colour<CS> colour = std::get<1>(triangle);
   linetriangle(window, triangle);
   line(window, mid, midi, colour);
   filledtriangleflat(window, top, mid, midi, colour);
@@ -159,16 +163,33 @@ void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
     for (int x = bounds.min.x; x <= bounds.max.x; x++) {
       glm::vec3 bc = barycentric(glmt::vec2s(x, y), tri);
       if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) {
+        // outside of triangle
         continue;
       }
 
       glmt::vec2t tx = bc[0] * glm::vec2(tex[0]) + bc[1] * glm::vec2(tex[1]) +
                        bc[2] * glm::vec2(tex[2]);
-      glm::ivec3 c = ppm[tx] * 255.0f;
-
-      uint32_t packed =
-          (255 << 24) + (int(c.r) << 16) + (int(c.g) << 8) + int(c.b);
-      window.setPixelColour(x, y, packed);
+      window.setPixelColour(x, y, ppm[tx].argb8888());
     }
   }
+}
+
+#include <fstream>
+
+glmt::PPM parse_ppm(const std::string filename) {
+  glmt::PPM ppm;
+  std::ifstream file(filename.c_str());
+
+  file >> ppm;
+
+  // TODO: should this throw?
+  if (file.fail()) {
+    std::cerr << "Parsing PPM \"" << filename << "\" failed" << std::endl;
+  }
+  if (file.peek(), !file.eof()) {
+    std::clog << "PPM \"" << filename << "\" has extra data past specification"
+              << std::endl;
+  }
+
+  return ppm;
 }

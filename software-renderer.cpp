@@ -1,5 +1,3 @@
-#include <sdw/ModelTriangle.h>
-#include <sdw/Utils.h>
 #include <sdw/window.h>
 
 #include "glmt.hpp"
@@ -10,7 +8,6 @@
 #include <glm/gtx/io.hpp>
 
 #include <cstdlib>
-#include <fstream>
 
 #define N 2
 #define WIDTH (320 * N)
@@ -25,8 +22,12 @@ sdw::window window;
 sdw::window texture_d;
 
 struct State {
-  std::tuple<std::array<glmt::vec2s, 3>, Colour> unfilled_triangle;
-  std::tuple<std::array<glmt::vec2s, 3>, Colour> filled_triangle;
+  std::tuple<std::array<glmt::vec2s, 3>,
+             glmt::colour<glmt::COLOR_SPACE::RGB888>>
+      unfilled_triangle;
+  std::tuple<std::array<glmt::vec2s, 3>,
+             glmt::colour<glmt::COLOR_SPACE::RGB888>>
+      filled_triangle;
 
   struct ModelTriangle {
     std::array<glmt::vec2s, 3> triangle;
@@ -56,23 +57,6 @@ int main(int argc, char *argv[]) {
   }
 }
 
-glmt::PPM parse_ppm(const std::string filename) {
-  glmt::PPM ppm;
-  std::ifstream file(filename.c_str());
-
-  file >> ppm;
-
-  if (file.fail()) {
-    std::cerr << "Parsing PPM \"" << filename << "\" failed" << std::endl;
-  }
-  if (file.peek(), !file.eof()) {
-    std::clog << "PPM \"" << filename << "\" has extra data past specification"
-              << std::endl;
-  }
-
-  return ppm;
-}
-
 glmt::MTL parse_mtl(const std::string filename) {
   glmt::MTL mtl;
   std::ifstream file(filename.c_str());
@@ -91,22 +75,12 @@ glmt::MTL parse_mtl(const std::string filename) {
 }
 
 void setup() {
-  {
-    glmt::MTL mtl = parse_mtl("cornell-box.mtl");
-    std::cout << mtl << std::endl;
-    exit(1);
-  }
-
-  std::string path = "texture.ppm";
-  std::ifstream texture(path.c_str());
-  texture >> state.ppm;
-  if (texture.fail()) {
-    std::cerr << "Parsing PPM \"" << path << "\" failed" << std::endl;
-  }
-  if (texture.peek(), !texture.eof()) {
-    std::cerr << "PPM \"" << path << "\" has extra data past specification"
-              << std::endl;
-  }
+  // {
+  //   glmt::MTL mtl = parse_mtl("cornell-box.mtl");
+  //   std::cout << mtl << std::endl;
+  //   exit(1);
+  // }
+  state.ppm = parse_ppm("texture.ppm");
 
   state.modeltriangle.ppm = state.ppm;
   state.modeltriangle.triangle = std::array<glmt::vec2s, 3>{
@@ -139,7 +113,10 @@ void setup() {
       glm::vec2(state.modeltriangle.texture[0]),
       glm::vec2(state.modeltriangle.texture[1]),
       glm::vec2(state.modeltriangle.texture[2])};
-  linetriangle(texture_d, std::make_tuple(texture_s, Colour(0, 255, 0)));
+  linetriangle(
+      texture_d,
+      std::make_tuple(texture_s,
+                      glmt::colour<glmt::COLOR_SPACE::RGB888>(0, 255, 0)));
   texture_d.renderFrame();
 }
 
@@ -147,8 +124,9 @@ void draw() {
   // window.clearPixels();
   texturedtriangle(window, state.modeltriangle.triangle,
                    state.modeltriangle.texture, state.modeltriangle.ppm);
-  linetriangle(
-      window, std::make_tuple(state.modeltriangle.triangle, Colour(255, 0, 0)));
+  linetriangle(window, std::make_tuple(
+                           state.modeltriangle.triangle,
+                           glmt::colour<glmt::COLOR_SPACE::RGB888>(255, 0, 0)));
 }
 
 void update() {

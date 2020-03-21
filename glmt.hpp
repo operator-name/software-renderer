@@ -32,6 +32,7 @@ namespace glmt {
     template <> class colour<COLOR_SPACE::RGBA8888> : public glm::u8vec4 {
     public:
       using glm::u8vec4::u8vec4;
+      colour(glm::u8vec4 c) : glm::u8vec4(c){};
       uint32_t argb8888() {
         uint32_t packed = ((*this).a << 24) + ((*this).r << 16) +
                           ((*this).g << 8) + (*this).b;
@@ -41,6 +42,7 @@ namespace glmt {
     template <> class colour<COLOR_SPACE::RGB888> : public glm::u8vec3 {
     public:
       using glm::u8vec3::u8vec3;
+      colour(glm::u8vec3 c) : glm::u8vec3(c){};
       uint32_t argb8888() {
         colour<COLOR_SPACE::RGBA8888> c(*this, 255);
         return c.argb8888();
@@ -49,7 +51,7 @@ namespace glmt {
     template <> class colour<COLOR_SPACE::RBGFLOAT01> : public glm::vec3 {
     public:
       using glm::vec3::vec3;
-      colour(glm::vec3 v) : glm::vec3(v){};
+      colour(glm::vec3 c) : glm::vec3(c){};
       uint32_t argb8888() {
         colour<COLOR_SPACE::RGB888> c(*this * 255.f);
         return c.argb8888();
@@ -331,11 +333,11 @@ namespace glmt {
   // http://netpbm.sourceforge.net/doc/ppm.html
   class PPM {
   protected:
-    std::vector<glm::vec3> _body;
+    std::vector<colour<COLOR_SPACE::RBGFLOAT01>> _body;
 
   public:
     parser::PPM_header header;
-    glm::vec3 &operator[](glmt::vec2<glmt::uv> ix) {
+    colour<COLOR_SPACE::RBGFLOAT01> &operator[](glmt::vec2<glmt::uv> ix) {
       // GL_REPEAT
       ix.x %= header.width;
       ix.y %= header.height;
