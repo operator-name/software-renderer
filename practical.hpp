@@ -50,7 +50,7 @@ std::vector<glmt::vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
   return points;
 }
 
-template <glmt::COLOR_SPACE CS>
+template <glmt::COLOUR_SPACE CS>
 void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
           glmt::colour<CS> colour) {
   for (auto const &p : naiveline(start, end)) {
@@ -61,7 +61,7 @@ void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
 #include <array>
 #include <tuple>
 
-template <glmt::COLOR_SPACE CS>
+template <glmt::COLOUR_SPACE CS>
 void linetriangle(
     sdw::window window,
     std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
@@ -75,11 +75,10 @@ void linetriangle(
 
 #include <glm/gtc/random.hpp>
 
-std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<glmt::COLOR_SPACE::RGB888>>
+std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888>
 randomtriangleinside(sdw::window window) {
-  glmt::colour<glmt::COLOR_SPACE::RGB888> colour(glm::linearRand(0, 255),
-                                                 glm::linearRand(0, 255),
-                                                 glm::linearRand(0, 255));
+  glmt::rgb888 colour(glm::linearRand(0, 255), glm::linearRand(0, 255),
+                      glm::linearRand(0, 255));
   std::array<glmt::vec2s, 3> points{
       glmt::vec2s(glm::linearRand<float>(0, window.width - 1),
                   glm::linearRand<float>(0, window.height - 1)),
@@ -93,7 +92,7 @@ randomtriangleinside(sdw::window window) {
 
 #include <algorithm>
 
-template <glmt::COLOR_SPACE CS>
+template <glmt::COLOUR_SPACE CS>
 void filledtriangleflat(sdw::window window, glmt::vec2s top,
                         glmt::vec2s bottom1, glmt::vec2s bottom2,
                         glmt::colour<CS> colour) {
@@ -113,7 +112,7 @@ void filledtriangleflat(sdw::window window, glmt::vec2s top,
 
 // why not barycentric coordinates
 // http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
-template <glmt::COLOR_SPACE CS>
+template <glmt::COLOUR_SPACE CS>
 void filledtriangle(
     sdw::window window,
     std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
@@ -192,4 +191,26 @@ glmt::PPM parse_ppm(const std::string filename) {
   }
 
   return ppm;
+}
+
+glmt::OBJ parse_obj(const std::string filename) {
+  glmt::OBJ obj;
+  std::ifstream file(filename.c_str());
+
+  file >> obj;
+
+  if (file.fail()) {
+    std::cerr << "Parsing OBJ \"" << filename << "\" failed" << std::endl;
+  }
+  if (file.peek(), !file.eof()) {
+    std::clog << "OBJ \"" << filename
+              << "\" parsing did not consume entire file" << std::endl;
+    // std::string str((std::istreambuf_iterator<char>(file)),
+    //                 std::istreambuf_iterator<char>());
+    // std::cout << "==== REST ====" << std::endl;
+    // std::cout << str << std::endl;
+    // std::cout << "==== REST ====" << std::endl;
+  }
+
+  return obj;
 }

@@ -21,17 +21,17 @@
 namespace glmt {
 
   inline namespace common {
-    enum class COLOR_SPACE {
+    enum class COLOUR_SPACE {
       RGB888,
       RGBA8888,
       RBGFLOAT01,
     };
 
-    template <COLOR_SPACE c> class colour {
+    template <COLOUR_SPACE c> class colour {
     private:
       colour();
     };
-    template <> class colour<COLOR_SPACE::RGBA8888> : public glm::u8vec4 {
+    template <> class colour<COLOUR_SPACE::RGBA8888> : public glm::u8vec4 {
     public:
       using glm::u8vec4::u8vec4;
       colour(glm::u8vec4 c) : glm::u8vec4(c){};
@@ -41,28 +41,28 @@ namespace glmt {
         return packed;
       }
     };
-    template <> class colour<COLOR_SPACE::RGB888> : public glm::u8vec3 {
+    template <> class colour<COLOUR_SPACE::RGB888> : public glm::u8vec3 {
     public:
       using glm::u8vec3::u8vec3;
       colour(glm::u8vec3 c) : glm::u8vec3(c){};
       uint32_t argb8888() {
-        colour<COLOR_SPACE::RGBA8888> c(*this, 255);
+        colour<COLOUR_SPACE::RGBA8888> c(*this, 255);
         return c.argb8888();
       }
     };
-    template <> class colour<COLOR_SPACE::RBGFLOAT01> : public glm::vec3 {
+    template <> class colour<COLOUR_SPACE::RBGFLOAT01> : public glm::vec3 {
     public:
       using glm::vec3::vec3;
       colour(glm::vec3 c) : glm::vec3(c){};
       uint32_t argb8888() {
-        colour<COLOR_SPACE::RGB888> c(*this * 255.f);
+        colour<COLOUR_SPACE::RGB888> c(*this * 255.f);
         return c.argb8888();
       };
     };
 
-    typedef colour<COLOR_SPACE::RGBA8888> rgb8888;
-    typedef colour<COLOR_SPACE::RGB888> rbg888;
-    typedef colour<COLOR_SPACE::RBGFLOAT01> rgbf01;
+    typedef colour<COLOUR_SPACE::RGBA8888> rgb8888;
+    typedef colour<COLOUR_SPACE::RGB888> rgb888;
+    typedef colour<COLOUR_SPACE::RBGFLOAT01> rgbf01;
 
   } // namespace common
 
@@ -272,7 +272,7 @@ namespace glmt {
     // http://paulbourke.net/dataformats/mtl/
     class MTL_colour {
     public:
-      colour<COLOR_SPACE::RBGFLOAT01> rgb;
+      colour<COLOUR_SPACE::RBGFLOAT01> rgb;
       friend std::istream &operator>>(std::istream &input, MTL_colour &colour) {
         switch (input.peek()) {
         case '0':
@@ -560,11 +560,11 @@ namespace glmt {
   // http://netpbm.sourceforge.net/doc/ppm.html
   class PPM {
   protected:
-    std::vector<colour<COLOR_SPACE::RBGFLOAT01>> _body;
+    std::vector<colour<COLOUR_SPACE::RBGFLOAT01>> _body;
 
   public:
     parser::PPM_header header;
-    colour<COLOR_SPACE::RBGFLOAT01> operator[](glmt::vec2<glmt::uv> ix) {
+    colour<COLOUR_SPACE::RBGFLOAT01> operator[](glmt::vec2<glmt::uv> ix) {
       // GL_REPEAT
       ix.x %= header.width;
       ix.y %= header.height;
