@@ -151,7 +151,7 @@ glm::vec3 barycentric(glmt::vec2<T> p, std::array<glmt::vec2<T>, 3> t) {
 }
 
 void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
-                      std::array<glmt::vec2t, 3> tex, glmt::PPM ppm) {
+                      std::array<glmt::vec2t, 3> tex, glmt::PPM &ppm) {
   glmt::bound2<glmt::sc> bounds(tri.begin(), tri.end());
   // TODO: glmt::bound2::operator+ // largest bound which fits both
   // TODO: glmt::bound2::operator- // smallest bound which fits both

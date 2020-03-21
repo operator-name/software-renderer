@@ -8,7 +8,9 @@ stdenv.mkDerivation rec {
     gcc_debug
     gdb
     clang_9 # clang-format
-    clang-tools
+    clang-tools # clang-format
+    meshlab
+
     SDL2
   ];
 

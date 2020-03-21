@@ -22,7 +22,7 @@ public:
   void destroy();
   void renderFrame();
   bool pollForInputEvents(SDL_Event *event);
-  void setPixelColour(int x, int y, uint32_t colour);
+  void setPixelColour(int x, int y, const uint32_t colour);
   uint32_t getPixelColour(int x, int y);
   void clearPixels();
 

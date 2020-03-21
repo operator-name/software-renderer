@@ -57,8 +57,8 @@ int main(int argc, char *argv[]) {
   }
 }
 
-glmt::MTL parse_mtl(const std::string filename) {
-  glmt::MTL mtl;
+glmt::parser::MTL parse_mtl(const std::string filename) {
+  glmt::parser::MTL mtl;
   std::ifstream file(filename.c_str());
 
   file >> mtl;
@@ -76,16 +76,17 @@ glmt::MTL parse_mtl(const std::string filename) {
 
 void setup() {
   {
-    glm::vec2 pos(1, 5);
-    glm::vec3 v3(pos, 1);
-    glm::vec2 v2(v3);
+    std::ifstream file("cornell-box.obj");
+    glmt::OBJ obj;
 
-    std::cout << pos << std::endl;
-    std::cout << v3 << std::endl;
-    std::cout << v2 << std::endl;
+    file >> obj;
 
-    glmt::MTL mtl = parse_mtl("cornell-box.mtl");
-    std::cout << mtl << std::endl;
+    std::string str((std::istreambuf_iterator<char>(file)),
+                    std::istreambuf_iterator<char>());
+    std::cout << "==== REST ====" << std::endl;
+    std::cout << str << std::endl;
+    std::cout << "==== REST ====" << std::endl;
+
     exit(1);
   }
 

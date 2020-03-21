@@ -6,6 +6,7 @@
 
 #include <array>
 #include <cctype>
+#include <fstream>
 #include <iostream>
 #include <istream>
 #include <limits>
@@ -13,6 +14,7 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <type_traits>
 #include <vector>
 
@@ -58,6 +60,10 @@ namespace glmt {
       };
     };
 
+    typedef colour<COLOR_SPACE::RGBA8888> rgb8888;
+    typedef colour<COLOR_SPACE::RGB888> rbg888;
+    typedef colour<COLOR_SPACE::RBGFLOAT01> rgbf01;
+
   } // namespace common
 
   inline namespace d2 {
@@ -96,6 +102,27 @@ namespace glmt {
     typedef vec2<sc> vec2s; // screen space vec2
     typedef vec2<uv> vec2t; // texture spac vec2
   }                         // namespace d2
+
+  inline namespace d3 {
+    enum class COORDINATE_SYSTEM_3D {
+      LOCAL_SPACE,
+      WORLD_SPACE,
+      CAMERA_SPACE,
+    };
+    template <COORDINATE_SYSTEM_3D CS> class vec3 {
+    protected:
+      vec3();
+    };
+    template <>
+    class vec3<COORDINATE_SYSTEM_3D::LOCAL_SPACE> : public glm::vec4 {
+    public:
+      using glm::vec4::vec4;
+      vec3(glm::vec4 vec4) : glm::vec4(vec4) {}
+    };
+
+    typedef vec3<COORDINATE_SYSTEM_3D::LOCAL_SPACE>
+        vec3l; // vec3 in local space
+  }            // namespace d3
 
   namespace parser {
     namespace detail {
@@ -290,8 +317,8 @@ namespace glmt {
       friend std::istream &operator>>(std::istream &input, MTL_newmtl &newmtl) {
         input >> detail::ch<'n'>() >> detail::ch<'e'>() >> detail::ch<'w'>() >>
             detail::ch<'m'>() >> detail::ch<'t'>() >> detail::ch<'l'>() >>
-            detail::ch<' '>() >> newmtl.name >> detail::ch<'\n'>();
-        do {
+            detail::ch<' '>() >> newmtl.name;
+        while (!input.eof() && !input.fail() && input.peek() != 'n') {
           input >> detail::ws_until("KTidNsmbrn");
           switch (input.peek()) {
           case 'n':
@@ -319,7 +346,7 @@ namespace glmt {
             break;
           }
           }
-        } while (!input.eof() && !input.fail() && input.peek() != 'n');
+        }
 
         return input;
       }
@@ -334,6 +361,200 @@ namespace glmt {
       }
     };
 
+    // http://paulbourke.net/dataformats/mtl/
+    class MTL {
+    public:
+      std::map<std::string, MTL_newmtl> mtls;
+      friend std::istream &operator>>(std::istream &input, MTL &mtl) {
+        while (!input.eof() && !input.fail()) {
+          MTL_newmtl m;
+          input >> m;
+
+          mtl.mtls.emplace(m.name, m);
+        }
+
+        return input;
+      }
+      friend std::ostream &operator<<(std::ostream &output, const MTL &mtl) {
+        output << "MTL [ ";
+        for (const auto &newmtl : mtl.mtls) {
+          output << newmtl.second << ", ";
+        }
+        output << "]";
+
+        return output;
+      }
+    };
+
+    class OBJ_mtllib {
+      // Specifies the material library file for the material definitions
+      // set with the usemtl statement. You can specify multiple filenames
+      // with mtllib. If multiple filenames are specified, the first file
+      // listed is searched first for the material definition, the second
+      // file is searched next, and so on.
+    protected:
+      std::vector<MTL> mtls;
+
+    public:
+      OBJ_mtllib(){};
+      OBJ_mtllib(std::vector<MTL> mtls) : mtls(mtls){};
+
+      MTL_newmtl operator[](const std::string name) {
+        for (const auto &mtl : mtls) {
+          auto iter = mtl.mtls.find(name);
+          if (iter != mtl.mtls.end()) {
+            return iter->second;
+          }
+        }
+
+        return MTL_newmtl{"undefined", {glm::vec3(0.5, 0, 0.5)}};
+      }
+
+      friend std::istream &operator>>(std::istream &input, OBJ_mtllib &mtllib) {
+        input >> detail::ch<'m'>() >> detail::ch<'t'>() >> detail::ch<'l'>() >>
+            detail::ch<'l'>() >> detail::ch<'i'>() >> detail::ch<'b'>() >>
+            detail::ch<' '>();
+        while (input.peek() != '\n' && !input.eof() && !input.fail()) {
+          std::string filename;
+          input >> filename;
+
+          std::ifstream file(filename.c_str());
+          MTL mtl;
+
+          file >> mtl;
+
+          if (file.fail()) {
+            std::cerr << "Parsing MTL \"" << filename << "\" failed"
+                      << std::endl;
+            input.setstate(std::ios::failbit);
+          }
+          if (file.peek(), !file.eof()) {
+            std::clog << "MTL \"" << filename
+                      << "\" parsing did not consume entire file" << std::endl;
+          }
+
+          mtllib.mtls.push_back(mtl);
+        }
+
+        return input;
+      }
+
+      friend std::ostream &operator<<(std::ostream &output,
+                                      const OBJ_mtllib &mtllib) {
+        output << "OBJ_mtllib [ ";
+        for (const auto &mtl : mtllib.mtls) {
+          output << mtl << ", ";
+        }
+        output << "]";
+
+        return output;
+      }
+    };
+
+    class OBJ_v {
+    public:
+      glmt::vec3l v;
+      friend std::istream &operator>>(std::istream &input, OBJ_v &v) {
+        float x;
+        float y;
+        float z;
+        input >> detail::ch<'v'>() >> x >> y >> z;
+        v.v = glm::vec4(x, y, z, 1);
+        return input;
+      }
+      friend std::ostream &operator<<(std::ostream &output, const OBJ_v &v) {
+        std::cout << "OBJ_v " << v.v;
+        return output;
+      }
+    };
+
+    class OBJ_f {
+    public:
+      std::string usemtl;
+      std::vector<size_t> vs;
+      OBJ_f(std::string usemtl) : usemtl(usemtl) {}
+      friend std::istream &operator>>(std::istream &input, OBJ_f &f) {
+        input >> detail::ch<'f'>();
+        while (input.peek() != '\n' && !input.eof() && !input.fail()) {
+          size_t v;
+
+          input >> v >> detail::ch<'/'>();
+          f.vs.push_back(v);
+        }
+
+        return input;
+      }
+      friend std::ostream &operator<<(std::ostream &output, const OBJ_f &f) {
+        output << "OBJ_f { .usemtl = " << f.usemtl << " .vs = [";
+        for (const auto &v : f.vs) {
+          output << v << ", ";
+        }
+        output << "] }";
+        return output;
+      }
+    };
+
+    // http://paulbourke.net/dataformats/obj/
+    class OBJ_data {
+    public:
+      OBJ_mtllib mtllib;
+      std::string usemtl;
+      std::vector<OBJ_v> vs;
+      std::vector<OBJ_f> fs;
+
+      friend std::istream &operator>>(std::istream &input, OBJ_data &data) {
+        while (!input.eof() && !input.fail()) {
+          input >> detail::ws_until("mouvf");
+          switch (input.peek()) {
+          case 'm': {
+            OBJ_mtllib mtllib(data.mtllib);
+            input >> mtllib;
+            data.mtllib = mtllib;
+            break;
+          }
+          case 'o': {
+            // o object_name
+            // *snip*
+            // Optional statement; it is not processed by any Wavefront
+            // programs. *snip*
+            std::string name;
+            input >> detail::ch<'o'>() >> name;
+            break;
+          }
+          case 'u': {
+            std::string mtlname;
+            input >> detail::ch<'u'>() >> detail::ch<'s'>() >>
+                detail::ch<'e'>() >> detail::ch<'m'>() >> detail::ch<'t'>() >>
+                detail::ch<'l'>() >> detail::ch<' '>() >> mtlname;
+            data.usemtl = mtlname;
+            break;
+          }
+          case 'v': {
+            OBJ_v v;
+            input >> v;
+            data.vs.push_back(v);
+            break;
+          }
+          case 'f': {
+            OBJ_f f(data.usemtl);
+            input >> f;
+            data.fs.push_back(f);
+            break;
+          }
+          default: {
+            input.setstate(std::ios::failbit);
+            std::string kw;
+            input >> kw;
+            std::cout << ".obj parser does not support statement \"" << kw
+                      << "\"" << std::endl;
+            break;
+          }
+          }
+        }
+        return input;
+      }
+    };
+
   } // namespace parser
 
   // http://netpbm.sourceforge.net/doc/ppm.html
@@ -343,7 +564,7 @@ namespace glmt {
 
   public:
     parser::PPM_header header;
-    colour<COLOR_SPACE::RBGFLOAT01> &operator[](glmt::vec2<glmt::uv> ix) {
+    colour<COLOR_SPACE::RBGFLOAT01> operator[](glmt::vec2<glmt::uv> ix) {
       // GL_REPEAT
       ix.x %= header.width;
       ix.y %= header.height;
@@ -373,34 +594,28 @@ namespace glmt {
     }
   };
 
-  // http://paulbourke.net/dataformats/mtl/
-  class MTL {
-  protected:
-    std::map<std::string, parser::MTL_newmtl> _newmtls;
-
+  class OBJ {
   public:
-    // careful, this creates new items if mtlname is not in the map
-    parser::MTL_newmtl &operator[](std::string mtlname) {
-      return _newmtls[mtlname];
-    }
-    friend std::istream &operator>>(std::istream &input, MTL &mtl) {
-      while (!input.eof() && !input.fail()) {
-        parser::MTL_newmtl m;
-        input >> m;
+    typedef std::array<vec3l, 3> tri_l;
+    typedef std::tuple<tri_l, rgbf01> triangle;
+    std::vector<triangle> triangles;
+    friend std::istream &operator>>(std::istream &input, OBJ &obj) {
+      parser::OBJ_data data;
+      input >> data;
 
-        mtl._newmtls.emplace(m.name, m);
+      for (auto const &f : data.fs) {
+        // assume all fs are triangles
+        tri_l tl;
+        rgbf01 c = data.mtllib[f.usemtl].Kd.rgb;
+
+        for (size_t i = 0; i < tl.size(); i++) {
+          tl[i] = data.vs[f.vs[i] - 1].v; // fs are 1 indexed
+        }
+
+        obj.triangles.push_back(std::make_tuple(tl, c));
       }
 
       return input;
-    }
-    friend std::ostream &operator<<(std::ostream &output, const MTL &mtl) {
-      output << "MTL [ ";
-      for (const auto &newmtl : mtl._newmtls) {
-        output << newmtl.second << ", ";
-      }
-      output << "]";
-
-      return output;
     }
   };
 
