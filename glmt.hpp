@@ -61,6 +61,7 @@ namespace glmt {
   } // namespace common
 
   inline namespace d2 {
+    // TODO: consider vec3 for homogeneous coordinates
     typedef glm::uvec2::value_type px; // pixel space
     typedef glm::ivec2::value_type uv; // texture space
     typedef glm::vec2::value_type sc;  // screen space
@@ -97,58 +98,135 @@ namespace glmt {
   }                         // namespace d2
 
   namespace parser {
-    template <char x> class ch {
-    public:
-      friend std::istream &operator>>(std::istream &input, ch empty) {
-        if (input.peek() == x) {
-          input.get();
-        } else {
-          input.setstate(std::ios::failbit);
+    namespace detail {
+      template <char x> class ch {
+      public:
+        friend std::istream &operator>>(std::istream &input, ch empty) {
+          if (input.peek() == x) {
+            input.get();
+          } else {
+            input.setstate(std::ios::failbit);
+          }
+          return input;
         }
-        return input;
-      }
-    };
+      };
 
-    class ws {
-      static bool isspace(char ch) {
-        return std::isspace(static_cast<unsigned char>(ch));
-      }
-
-    public:
-      friend std::istream &operator>>(std::istream &input, ws empty) {
-        if (isspace(input.peek())) {
-          input.get();
-        } else {
-          input.setstate(std::ios::failbit);
+      class ws {
+        static bool isspace(char ch) {
+          return std::isspace(static_cast<unsigned char>(ch));
         }
-        return input;
-      }
-    };
 
-    class comment {
-    public:
-      friend std::istream &operator>>(std::istream &input, comment empty) {
-        if (input.peek() == '#') {
-          char ch;
-          do {
-            ch = input.get();
-          } while (ch != '\n' && ch != '\r');
+      public:
+        friend std::istream &operator>>(std::istream &input, ws empty) {
+          if (isspace(input.peek())) {
+            input.get();
+          } else {
+            input.setstate(std::ios::failbit);
+          }
+          return input;
         }
-        return input;
-      }
-    };
+      };
 
+      class comment {
+      public:
+        friend std::istream &operator>>(std::istream &input, comment empty) {
+          if (input.peek() == '#') {
+            char ch;
+            do {
+              ch = input.get();
+            } while (ch != '\n' && ch != '\r');
+          }
+          return input;
+        }
+      };
+
+      template <size_t N> class pixel : public std::array<uint8_t, N> {
+      public:
+        friend std::istream &operator>>(std::istream &input, pixel &px) {
+          for (size_t i = 0; i < N; i++) {
+            px[i] = input.get();
+          }
+
+          return input;
+        }
+      };
+
+      template <size_t N> class rgb : public std::array<pixel<N>, 3> {
+      public:
+        friend std::istream &operator>>(std::istream &input, rgb &c) {
+          input >> c[0] >> c[1] >> c[2];
+          return input;
+        }
+      };
+      template <> class rgb<1> : public glm::i8vec3 {
+      public:
+        friend std::istream &operator>>(std::istream &input, rgb &c) {
+          pixel<1> r;
+          pixel<1> g;
+          pixel<1> b;
+
+          input >> r >> g >> b;
+
+          c.r = r[0];
+          c.g = g[0];
+          c.b = b[0];
+
+          return input;
+        }
+      };
+      template <> class rgb<2> : public glm::i16vec3 {
+      public:
+        friend std::istream &operator>>(std::istream &input, rgb &c) {
+          pixel<2> r;
+          pixel<2> g;
+          pixel<2> b;
+
+          input >> r >> g >> b;
+
+          c.r =
+              (static_cast<uint16_t>(r[0]) << 8) + static_cast<uint16_t>(r[1]);
+          c.g =
+              (static_cast<uint16_t>(g[0]) << 8) + static_cast<uint16_t>(g[1]);
+          c.b =
+              (static_cast<uint16_t>(b[0]) << 8) + static_cast<uint16_t>(b[1]);
+
+          return input;
+        }
+      };
+
+      class ws_until {
+      protected:
+        std::string _matches;
+
+      public:
+        ws_until(std::string chs) { _matches = chs; }
+
+        friend std::istream &operator>>(std::istream &input, ws_until empty) {
+          while (empty._matches.find(input.peek()) == std::string::npos) {
+
+            if (isspace(input.peek())) {
+              input.get();
+            } else {
+              input.setstate(std::ios::failbit);
+              break;
+            }
+          }
+          return input;
+        }
+      };
+
+    } // namespace detail
     class PPM_header {
     public:
       size_t width;
       size_t height;
       uint16_t maxval;
       friend std::istream &operator>>(std::istream &input, PPM_header &header) {
-        input >> parser::ch<'P'>() >> parser::ch<'6'>() >> parser::ws() >>
-            parser::comment();
-        input >> header.width >> parser::ws() >> parser::comment();
-        input >> header.height >> parser::ws() >> parser::comment();
-        input >> header.maxval >> parser::ws() >> parser::comment();
+        input >> detail::ch<'P'>() >> detail::ch<'6'>() >> detail::ws() >>
+            detail::comment();
+        input >> header.width >> detail::ws() >> detail::comment();
+        input >> header.height >> detail::ws() >> detail::comment();
+        input >> header.maxval >> detail::ws() >> detail::comment();
 
         return input;
       }
@@ -164,80 +242,7 @@ namespace glmt {
       }
     };
 
-    template <size_t N> class pixel : public std::array<uint8_t, N> {
-    public:
-      friend std::istream &operator>>(std::istream &input, pixel &px) {
-        for (size_t i = 0; i < N; i++) {
-          px[i] = input.get();
-        }
-
-        return input;
-      }
-    };
-
-    template <size_t N> class rgb : public std::array<pixel<N>, 3> {
-    public:
-      friend std::istream &operator>>(std::istream &input, rgb &c) {
-        input >> c[0] >> c[1] >> c[2];
-        return input;
-      }
-    };
-    template <> class rgb<1> : public glm::i8vec3 {
-    public:
-      friend std::istream &operator>>(std::istream &input, rgb &c) {
-        pixel<1> r;
-        pixel<1> g;
-        pixel<1> b;
-
-        input >> r >> g >> b;
-
-        c.r = r[0];
-        c.g = g[0];
-        c.b = b[0];
-
-        return input;
-      }
-    };
-    template <> class rgb<2> : public glm::i16vec3 {
-    public:
-      friend std::istream &operator>>(std::istream &input, rgb &c) {
-        pixel<2> r;
-        pixel<2> g;
-        pixel<2> b;
-
-        input >> r >> g >> b;
-
-        c.r = (static_cast<uint16_t>(r[0]) << 8) + static_cast<uint16_t>(r[1]);
-        c.g = (static_cast<uint16_t>(g[0]) << 8) + static_cast<uint16_t>(g[1]);
-        c.b = (static_cast<uint16_t>(b[0]) << 8) + static_cast<uint16_t>(b[1]);
-
-        return input;
-      }
-    };
-
     // http://paulbourke.net/dataformats/mtl/
-
-    class ws_until {
-    protected:
-      std::string _matches;
-
-    public:
-      ws_until(std::string chs) { _matches = chs; }
-
-      friend std::istream &operator>>(std::istream &input, ws_until empty) {
-        while (empty._matches.find(input.peek()) == std::string::npos) {
-
-          if (isspace(input.peek())) {
-            input.get();
-          } else {
-            input.setstate(std::ios::failbit);
-            break;
-          }
-        }
-        return input;
-      }
-    };
-
     class MTL_colour {
     public:
       colour<COLOR_SPACE::RBGFLOAT01> rgb;
@@ -283,18 +288,19 @@ namespace glmt {
       // float Ns;      // specular exponent
 
       friend std::istream &operator>>(std::istream &input, MTL_newmtl &newmtl) {
-        input >> ch<'n'>() >> ch<'e'>() >> ch<'w'>() >> ch<'m'>() >>
-            ch<'t'>() >> ch<'l'>() >> ch<' '>() >> newmtl.name >> ch<'\n'>();
+        input >> detail::ch<'n'>() >> detail::ch<'e'>() >> detail::ch<'w'>() >>
+            detail::ch<'m'>() >> detail::ch<'t'>() >> detail::ch<'l'>() >>
+            detail::ch<' '>() >> newmtl.name >> detail::ch<'\n'>();
         do {
-          input >> ws_until("KTidNsmbrn");
+          input >> detail::ws_until("KTidNsmbrn");
           switch (input.peek()) {
           case 'n':
             break;
           case 'K': {
-            input >> ch<'K'>();
+            input >> detail::ch<'K'>();
             switch (input.peek()) {
             case 'd':
-              input >> ch<'d'>() >> ws() >> newmtl.Kd;
+              input >> detail::ch<'d'>() >> detail::ws() >> newmtl.Kd;
               break;
             default:
               input.setstate(std::ios::failbit);
@@ -350,12 +356,12 @@ namespace glmt {
       for (size_t h = 0; h < ppm.header.height; h++) {
         for (size_t w = 0; w < ppm.header.width; w++) {
           if (ppm.header.maxval < 256) {
-            parser::rgb<1> c;
+            parser::detail::rgb<1> c;
             input >> c;
             ppm._body.push_back(glm::vec3(c) /
                                 static_cast<float>(ppm.header.maxval));
           } else {
-            parser::rgb<2> c;
+            parser::detail::rgb<2> c;
             input >> c;
             ppm._body.push_back(glm::vec3(c) /
                                 static_cast<float>(ppm.header.maxval));
@@ -367,6 +373,7 @@ namespace glmt {
     }
   };
 
+  // http://paulbourke.net/dataformats/mtl/
   class MTL {
   protected:
     std::map<std::string, parser::MTL_newmtl> _newmtls;

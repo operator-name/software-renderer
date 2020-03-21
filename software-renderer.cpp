@@ -75,11 +75,20 @@ glmt::MTL parse_mtl(const std::string filename) {
 }
 
 void setup() {
-  // {
-  //   glmt::MTL mtl = parse_mtl("cornell-box.mtl");
-  //   std::cout << mtl << std::endl;
-  //   exit(1);
-  // }
+  {
+    glm::vec2 pos(1, 5);
+    glm::vec3 v3(pos, 1);
+    glm::vec2 v2(v3);
+
+    std::cout << pos << std::endl;
+    std::cout << v3 << std::endl;
+    std::cout << v2 << std::endl;
+
+    glmt::MTL mtl = parse_mtl("cornell-box.mtl");
+    std::cout << mtl << std::endl;
+    exit(1);
+  }
+
   state.ppm = parse_ppm("texture.ppm");
 
   state.modeltriangle.ppm = state.ppm;
