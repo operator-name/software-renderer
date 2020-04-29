@@ -20,9 +20,9 @@ void handleEvent(SDL_Event event);
 
 sdw::window window;
 
-float scale = 100;
-float x = 100;
-float y = 400;
+float scale = 50;
+float x = 300;
+float y = 100;
 
 struct State {
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
@@ -30,9 +30,6 @@ struct State {
 
   glmt::OBJ obj;
 } state;
-
-// assumes trangle.vertices[1].y == trangle.vertices[2].y
-// void texturedtriangleflat(sdw::window window, ModelTriangle model) {}
 
 int main(int argc, char *argv[]) {
   setup();
@@ -52,9 +49,6 @@ int main(int argc, char *argv[]) {
 
 void setup() {
   state.obj = parse_obj("cornell-box.obj");
-  // sdw::window texture = texture_window("texture.ppm");
-  // std::cin.get();
-  // texture.close();
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
@@ -63,7 +57,7 @@ void setup() {
 }
 
 void draw() {
-  // window.clearPixels();
+  window.clearPixels();
   for (auto const &t : state.obj.triangles) {
     std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);

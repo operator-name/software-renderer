@@ -80,14 +80,14 @@ bool window::pollForInputEvents(SDL_Event *event) {
 
 void window::setPixelColour(int x, int y, uint32_t colour) {
   if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
-    std::cout << x << "," << y << " not on visible screen area" << std::endl;
+    // std::cout << x << "," << y << " not on visible screen area" << std::endl;
   } else
     pixelBuffer[(y * width) + x] = colour;
 }
 
 uint32_t window::getPixelColour(int x, int y) {
   if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
-    std::cout << x << "," << y << " not on visible screen area" << std::endl;
+    // std::cout << x << "," << y << " not on visible screen area" << std::endl;
     return -1;
   } else
     return pixelBuffer[(y * width) + x];
