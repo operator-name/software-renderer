@@ -19,6 +19,7 @@ public:
   // Constructor method
   window();
   window(int w, int h, bool fullscreen, std::string title = "COMS30115");
+  void close();
   void destroy();
   void renderFrame();
   bool pollForInputEvents(SDL_Event *event);

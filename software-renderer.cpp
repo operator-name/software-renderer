@@ -19,19 +19,15 @@ void update();
 void handleEvent(SDL_Event event);
 
 sdw::window window;
-sdw::window texture_d;
+
+float scale = 100;
+float x = 100;
+float y = 400;
 
 struct State {
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> filled_triangle;
 
-  struct ModelTriangle {
-    std::array<glmt::vec2s, 3> triangle;
-    std::array<glmt::vec2t, 3> texture;
-    glmt::PPM ppm;
-  } modeltriangle;
-
-  glmt::PPM ppm;
   glmt::OBJ obj;
 } state;
 
@@ -56,59 +52,28 @@ int main(int argc, char *argv[]) {
 
 void setup() {
   state.obj = parse_obj("cornell-box.obj");
-  state.ppm = parse_ppm("texture.ppm");
-
-  state.modeltriangle.ppm = state.ppm;
-  state.modeltriangle.triangle = std::array<glmt::vec2s, 3>{
-      glm::vec2(160, 10), glm::vec2(300, 230), glm::vec2(10, 150)};
-  state.modeltriangle.texture = std::array<glmt::vec2t, 3>{
-      glm::vec2(195, 5), glm::vec2(395, 380), glm::vec2(65, 330)};
+  // sdw::window texture = texture_window("texture.ppm");
+  // std::cin.get();
+  // texture.close();
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
   window = sdw::window(WIDTH, HEIGHT, false);
-  texture_d =
-      sdw::window(state.modeltriangle.ppm.header.width,
-                  state.modeltriangle.ppm.header.height, false, "texture.ppm");
-  for (int h = 0; h < texture_d.height; h++) {
-    for (int w = 0; w < texture_d.width; w++) {
-      // PPM::operator[] is GL_REPEAT by default
-      glm::ivec3 c = state.ppm[glm::ivec2(w, h)] * 255.0f;
-      float red = c.r;
-      float green = c.g;
-      float blue = c.b;
-
-      uint32_t packed =
-          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-      texture_d.setPixelColour(w, h, packed);
-    }
-  }
-  // unwrap texture space to screen space
-  std::array<glmt::vec2s, 3> texture_s{
-      glm::vec2(state.modeltriangle.texture[0]),
-      glm::vec2(state.modeltriangle.texture[1]),
-      glm::vec2(state.modeltriangle.texture[2])};
-  linetriangle(texture_d, std::make_tuple(texture_s, glmt::rgb888(0, 255, 0)));
-  texture_d.renderFrame();
 }
 
 void draw() {
   // window.clearPixels();
-  texturedtriangle(window, state.modeltriangle.triangle,
-                   state.modeltriangle.texture, state.modeltriangle.ppm);
-  linetriangle(window, std::make_tuple(state.modeltriangle.triangle,
-                                       glmt::rgb888(255, 0, 0)));
   for (auto const &t : state.obj.triangles) {
     std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);
 
     for (size_t i = 0; i < ft.size(); i++) {
-      ft[i] = glm::vec2(std::get<0>(t)[i]) * 50.0f + glm::vec2(300, 200);
+      ft[i] = glm::vec2(std::get<0>(t)[i]) * scale + glm::vec2(x, y);
     }
 
-    // filledtriangle(window, std::make_tuple(ft, c));
-    linetriangle(window, std::make_tuple(ft, c));
+    filledtriangle(window, std::make_tuple(ft, c));
+    // linetriangle(window, std::make_tuple(ft, c));
   }
 }
 
@@ -146,6 +111,12 @@ void handleEvent(SDL_Event event) {
       state.filled_triangle = randomtriangleinside(window);
       filledtriangle(window, state.filled_triangle);
       break;
+    case SDLK_x:
+      std::cout << "scale = " << scale << ", x = " << x << ", y = " << y
+                << std::endl;
+      std::cin >> scale >> x >> y;
+      std::cout << "scale = " << scale << ", x = " << x << ", y = " << y
+                << std::endl;
     }
     break;
   case SDL_MOUSEBUTTONDOWN:

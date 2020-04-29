@@ -42,6 +42,14 @@ window::window(int w, int h, bool fullscreen, std::string title) {
     printMessageAndQuit("Could not allocate texture: ", SDL_GetError());
 }
 
+// Just close this window without quitting SDL
+void window::close() {
+  delete[] pixelBuffer;
+  SDL_DestroyTexture(texture);
+  SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(_window);
+}
+
 // Deconstructor method
 void window::destroy() {
   delete[] pixelBuffer;

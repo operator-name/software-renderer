@@ -214,3 +214,31 @@ glmt::OBJ parse_obj(const std::string filename) {
 
   return obj;
 }
+
+#include <sdw/window.h>
+#include <string>
+
+sdw::window texture_window(std::string filename) {
+  glmt::PPM ppm = parse_ppm(filename);
+  sdw::window texture_window =
+      sdw::window(ppm.header.width, ppm.header.height, false, "texture.ppm");
+
+  for (int h = 0; h < texture_window.height; h++) {
+    for (int w = 0; w < texture_window.width; w++) {
+      // PPM::operator[] is GL_REPEAT by default
+      glm::ivec3 c = ppm[glm::ivec2(w, h)] * 255.0f;
+      float red = c.r;
+      float green = c.g;
+      float blue = c.b;
+
+      uint32_t packed =
+          (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
+      texture_window.setPixelColour(w, h, packed);
+    }
+  }
+
+  // should this render or let the caller call render?
+  texture_window.renderFrame();
+
+  return texture_window; // caller needs to call .close()
+}
