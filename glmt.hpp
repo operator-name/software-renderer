@@ -77,6 +77,7 @@ namespace glmt {
       using glm::tvec2<T>::tvec2;
       vec2(glm::tvec2<T> vec2) : glm::tvec2<T>(vec2) {}
     };
+
     template <typename T> class bound2 {
     public:
       vec2<T> min;
@@ -101,18 +102,25 @@ namespace glmt {
     typedef vec2<px> vec2p; // pixel space vec2
     typedef vec2<sc> vec2s; // screen space vec2
     typedef vec2<uv> vec2t; // texture spac vec2
-  }                         // namespace d2
+
+    typedef bound2<px> bound2p; // pixel space bound2
+    typedef bound2<sc> bound2s; // screen space bound2
+    typedef bound2<uv> bound2t; // texture space bound2
+  }                             // namespace d2
 
   inline namespace d3 {
+    // all of these are vec4, but we need a way to distinguish between them
     enum class COORDINATE_SYSTEM_3D {
       LOCAL_SPACE,
       WORLD_SPACE,
       CAMERA_SPACE,
     };
+
     template <COORDINATE_SYSTEM_3D CS> class vec3 {
     protected:
       vec3();
     };
+
     template <>
     class vec3<COORDINATE_SYSTEM_3D::LOCAL_SPACE> : public glm::vec4 {
     public:
@@ -122,7 +130,12 @@ namespace glmt {
 
     typedef vec3<COORDINATE_SYSTEM_3D::LOCAL_SPACE>
         vec3l; // vec3 in local space
-  }            // namespace d3
+    typedef vec3<COORDINATE_SYSTEM_3D::WORLD_SPACE>
+        vec3w; // vec3 in world space
+    typedef vec3<COORDINATE_SYSTEM_3D::CAMERA_SPACE>
+        vec3c; // vec3 in camera space
+
+  } // namespace d3
 
   namespace parser {
     namespace detail {
@@ -459,7 +472,8 @@ namespace glmt {
         float y;
         float z;
         input >> detail::ch<'v'>() >> x >> y >> z;
-        v.v = glm::vec4(x, y, z, 1);
+        v.v = glm::vec4(x, y, z,
+                        1); // Homogeneous coordinates, this is a position
         return input;
       }
       friend std::ostream &operator<<(std::ostream &output, const OBJ_v &v) {
