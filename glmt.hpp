@@ -116,13 +116,7 @@ namespace glmt {
       CAMERA_SPACE,
     };
 
-    template <COORDINATE_SYSTEM_3D CS> class vec3 {
-    protected:
-      vec3();
-    };
-
-    template <>
-    class vec3<COORDINATE_SYSTEM_3D::LOCAL_SPACE> : public glm::vec4 {
+    template <COORDINATE_SYSTEM_3D CS> class vec3 : public glm::vec4 {
     public:
       using glm::vec4::vec4;
       vec3(glm::vec4 vec4) : glm::vec4(vec4) {}

@@ -23,7 +23,7 @@ sdw::window window;
 
 float scale = 50;
 float x = 300;
-float y = 100;
+float y = 400;
 
 // strictly for what is supported for rendering, whereas glmt::OBJ may include
 // more data that the renderer does not support
@@ -42,11 +42,13 @@ struct State {
   Model model;
 
   glm::mat4 view;
-  glm::mat4 projection;
+  glm::mat4 proj;
 
   struct SDL_detail {
     bool mouse_down = false;
   } sdl;
+
+  unsigned int frame = 0;
 } state;
 
 int main(int argc, char *argv[]) {
@@ -76,13 +78,16 @@ void setup() {
 }
 
 void draw() {
-  // window.clearPixels();
+  window.clearPixels();
   for (auto const &t : state.model.triangles) {
     std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);
 
     for (size_t i = 0; i < ft.size(); i++) {
-      ft[i] = glm::vec2(state.model.matrix * std::get<0>(t)[i]);
+      glmt::vec3w ws = state.model.matrix * glm::vec4(std::get<0>(t)[i]);
+      glmt::vec3c cs = state.proj * state.view * glm::vec4(ws);
+      // clip
+      ft[i] = glm::vec2(cs);
     }
 
     // filledtriangle(window, std::make_tuple(ft, c));
@@ -91,9 +96,12 @@ void draw() {
 }
 
 void update() {
+  state.frame++;
+
   // Function for performing animation (shifting artifacts or moving the camera)
   state.model.matrix = glm::translate(glm::vec3(x, y, 0)) *
-                       glm::scale(glm::vec3(scale, scale, scale));
+                       glm::scale(glm::vec3(scale, scale, scale)) *
+                       glm::rotate(glm::pi<float>(), glm::vec3(0, 0, 1));
 }
 
 void handleEvent(SDL_Event event) {
