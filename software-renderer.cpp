@@ -41,12 +41,13 @@ struct Model {
 struct Camera {
   glmt::vec3w target = glm::vec4(0, 0, 0, 1);
 
-  float dist = -3.2f;
+  float dist = -10.2f;
   float pitch = 0;
   float yaw = 0.001;
   float rot_velocity = 0.0002f;
   float velocity = 0.003f;
 
+  // "look at" but with orbit style configuration
   glm::mat4 view() {
     glm::vec4 pos = glm::vec4(0, 0, dist, 0) + target;
     glm::mat4 rot = glm::rotate(yaw, glm::vec3(0, 1, 0)) *
@@ -62,6 +63,7 @@ struct State {
   glmt::OBJ obj;
   Model model;
 
+  Camera camera;
   glm::mat4 view = glm::lookAt(glm::vec3(0.1, 0.01, -10), glm::vec3(0, 0, 0),
                                glm::vec3(0, 1, 0));
   glm::mat4 proj = glm::perspectiveFov(glm::radians(90.f), (float)WIDTH,
@@ -150,10 +152,12 @@ void draw() {
 void update() {
   state.frame++;
 
-  // Function for performing animation (shifting artifacts or moving the camera)
-  state.model.matrix = glm::scale(glm::vec3(scale, scale, scale)) *
-                       glm::scale(glm::vec3(1, -1, 1)) *
-                       glm::translate(-state.model.centre);
+  state.view = state.camera.view();
+  state.model.matrix =
+      glm::scale(
+          glm::vec3(scale, scale, scale)) * // scale can be edited with keys
+      // glm::scale(glm::vec3(1, -1, 1)) *
+      glm::translate(-state.model.centre);
 }
 
 void handleEvent(SDL_Event event) {
