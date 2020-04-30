@@ -110,21 +110,20 @@ void setup() {
   // TODO: add proper random state
   std::srand(0);
   window = sdw::window(WIDTH, HEIGHT, false);
+}
 
-  update();
+void draw() {
+  // window.clearPixels();
   for (auto const &t : state.model.triangles) {
     std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);
 
     for (size_t i = 0; i < ft.size(); i++) {
       glmt::vec3l ls = std::get<0>(t)[i];
-      std::cout << "ls:" << ls << std::endl;
-      glmt::vec3w ws = state.model.matrix * ls;
-      std::cout << "ws:" << ws << std::endl;
-      glmt::vec3c cs = state.proj * state.view * ws;
-      std::cout << "cs:" << cs << std::endl;
+      // manually apply stuff
+      // glmt::vec3w ws = state.model.matrix * ls;
+      // glmt::vec3c cs = state.proj * state.view * ws;
       // clip
-
       // glm::vec4 ss = cs;
       // ss /= ss.w;
       // ss *= glm::vec4(0.5, 0.5, 1, 1);
@@ -140,13 +139,9 @@ void setup() {
       ft[i] = glm::vec2(ss);
     }
 
-    // filledtriangle(window, std::make_tuple(ft, c));
-    linetriangle(window, std::make_tuple(ft, c));
+    filledtriangle(window, std::make_tuple(ft, c));
+    // linetriangle(window, std::make_tuple(ft, c));
   }
-}
-
-void draw() {
-  // window.clearPixels();
 }
 
 void update() {
