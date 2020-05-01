@@ -218,10 +218,11 @@ glmt::OBJ parse_obj(const std::string filename) {
 #include <sdw/window.h>
 #include <string>
 
-sdw::window texture_window(std::string filename) {
+sdw::window texture_window(std::string filename, std::string title = "") {
   glmt::PPM ppm = parse_ppm(filename);
   sdw::window texture_window =
-      sdw::window(ppm.header.width, ppm.header.height, false, "texture.ppm");
+      sdw::window(ppm.header.width, ppm.header.height, false,
+                  title.empty() ? filename : title);
 
   for (int h = 0; h < texture_window.height; h++) {
     for (int w = 0; w < texture_window.width; w++) {

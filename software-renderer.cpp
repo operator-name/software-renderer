@@ -90,10 +90,28 @@ int main(int argc, char *argv[]) {
     // Need to render the frame at the end, or nothing actually gets shown on
     // the screen !
     window.renderFrame();
+
+    // http://netpbm.sourceforge.net/doc/ppm.html
   }
 }
 
 void setup() {
+  { // scope the file
+    glmt::PPM ppm = parse_ppm("texture.ppm");
+    std::ofstream file("texture_out.ppm");
+    file << ppm;
+  }
+
+  sdw::window orig = texture_window("texture.ppm", "orig");
+  sdw::window out = texture_window("texture_out.ppm", "out");
+
+  std::cout << "Press enter to quit..." << std::endl;
+  std::cin.get();
+  orig.close();
+  out.destroy();
+
+  exit(1);
+
   state.obj = parse_obj("cornell-box.obj");
 
   state.model.triangles = state.obj.triangles;
