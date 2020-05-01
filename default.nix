@@ -12,6 +12,8 @@ stdenv.mkDerivation rec {
     meshlab
 
     SDL2
+
+    ffmpeg
   ];
 
   buildPhase = ''

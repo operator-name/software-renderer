@@ -70,11 +70,13 @@ run: $(EXECUTABLE)
 dev:
 	clang-format --style="{NamespaceIndentation: All}" -i *.*pp
 	clear
-	make debug
+	make speedy
 	make run 	
+	ffmpeg -framerate 30 -i PPM/frame%05d.ppm -c:v libx264 -preset veryslow -crf 17 -tune animation out.mp4
 
 # Files to remove during clean
 clean:
 	rm -f $(WINDOW_OBJECT)
 	rm -f $(OBJECT_FILE)
 	rm -f $(EXECUTABLE)
+	rm -f PPM/frame*.ppm

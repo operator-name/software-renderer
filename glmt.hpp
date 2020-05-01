@@ -616,7 +616,8 @@ namespace glmt {
 
   public:
     parser::PPM_header header;
-    colour<COLOUR_SPACE::RBGFLOAT01> operator[](glmt::vec2<glmt::uv> ix) const {
+    void reserve() { _body.reserve(header.height * header.width); }
+    colour<COLOUR_SPACE::RBGFLOAT01> &operator[](glmt::vec2<glmt::uv> ix) {
       // GL_REPEAT
       ix.x %= header.width;
       ix.y %= header.height;
@@ -624,7 +625,7 @@ namespace glmt {
     }
     friend std::istream &operator>>(std::istream &input, PPM &ppm) {
       input >> ppm.header;
-      ppm._body.reserve(ppm.header.height * ppm.header.width);
+      ppm.reserve();
 
       for (size_t h = 0; h < ppm.header.height; h++) {
         for (size_t w = 0; w < ppm.header.width; w++) {
@@ -644,7 +645,7 @@ namespace glmt {
 
       return input;
     }
-    friend std::ostream &operator<<(std::ostream &output, const PPM &ppm) {
+    friend std::ostream &operator<<(std::ostream &output, PPM &ppm) {
       output << ppm.header;
 
       for (size_t h = 0; h < ppm.header.height; h++) {

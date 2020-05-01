@@ -11,7 +11,12 @@
 
 #include <cstdlib>
 
-#define FPS 30
+#define FPS 30.0
+#define FRAMES (FPS * 30)
+#define WRITE_FILE true
+#define EXIT_AFTER_WRITE (WRITE_FILE && true)
+#define RENDER true
+
 #define N 2
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
@@ -21,12 +26,9 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 
+// TODO: move into State struct
 sdw::window window;
-
-float scale = 1;
-float x = 0;
-float y = 0;
-float z = 0;
+glmt::PPM ppm;
 
 // strictly for what is supported for rendering, whereas glmt::OBJ may include
 // more data that the renderer does not support
@@ -74,7 +76,7 @@ struct State {
     bool mouse_down = false;
   } sdl;
 
-  unsigned int frame = 0;
+  unsigned int frame = -1; // update called first which incremets frame
 } state;
 
 int main(int argc, char *argv[]) {
@@ -87,31 +89,40 @@ int main(int argc, char *argv[]) {
       handleEvent(event);
     update();
     draw();
-    // Need to render the frame at the end, or nothing actually gets shown on
-    // the screen !
-    window.renderFrame();
 
-    // http://netpbm.sourceforge.net/doc/ppm.html
+    if (RENDER) {
+      window.renderFrame();
+    }
+
+    if (WRITE_FILE && state.frame < FRAMES) { // save frame as PPM
+      // COPY
+      for (int y = 0; y < window.height; y++) {
+        for (int x = 0; x < window.width; x++) {
+          uint32_t packed = window.getPixelColour(x, y);
+          // int a = (packed >> 24) & 255;
+          int r = (packed >> 16) & 255;
+          int g = (packed >> 8) & 255;
+          int b = (packed >> 0) & 255;
+
+          glmt::rgbf01 rgbf(r / 255.f, g / 255.f, b / 255.f);
+          ppm[glmt::vec2t(x, y)] = rgbf;
+        }
+      }
+
+      // WRITE
+      std::stringstream filename;
+      filename << "PPM/frame" << std::setfill('0') << std::setw(5)
+               << state.frame << ".ppm";
+      // std::cout << filename.str() << std::endl;
+      std::ofstream file(filename.str());
+      file << ppm;
+    } else if (EXIT_AFTER_WRITE) {
+      exit(0);
+    }
   }
 }
 
 void setup() {
-  { // scope the file
-    glmt::PPM ppm = parse_ppm("texture.ppm");
-    std::ofstream file("texture_out.ppm");
-    file << ppm;
-  }
-
-  sdw::window orig = texture_window("texture.ppm", "orig");
-  sdw::window out = texture_window("texture_out.ppm", "out");
-
-  std::cout << "Press enter to quit..." << std::endl;
-  std::cin.get();
-  orig.close();
-  out.destroy();
-
-  exit(1);
-
   state.obj = parse_obj("cornell-box.obj");
 
   state.model.triangles = state.obj.triangles;
@@ -131,6 +142,12 @@ void setup() {
   // TODO: add proper random state
   std::srand(0);
   window = sdw::window(WIDTH, HEIGHT, false);
+
+  ppm.header.width = window.width;
+  ppm.header.height = window.height;
+  ppm.header.maxval = 255;
+  ppm.reserve();
+  std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps" << std::endl;
 }
 
 void draw() {
@@ -140,6 +157,7 @@ void draw() {
     auto c = std::get<1>(t);
 
     for (size_t i = 0; i < ft.size(); i++) {
+
       glmt::vec3l ls = std::get<0>(t)[i];
       // manually apply stuff
       // glmt::vec3w ws = state.model.matrix * ls;
@@ -163,6 +181,9 @@ void draw() {
     // filledtriangle(window, std::make_tuple(ft, c));
     linetriangle(window, std::make_tuple(ft, c));
   }
+
+  linetriangle(window, state.unfilled_triangle);
+  filledtriangle(window, state.filled_triangle);
 }
 
 void update() {
@@ -170,20 +191,17 @@ void update() {
 
   float delta = (state.frame / FPS); // s since start
 
-  state.camera.yaw = glm::sin(delta / 30) * 2;
-  state.camera.pitch = glm::cos(delta / 50) / 2;
-  state.camera.dist = 10 + 3 * glm::sin(delta / 50);
+  state.camera.yaw = glm::sin(delta * 1.1) * 2;
+  state.camera.pitch = glm::cos(delta * 0.7) / 2;
+  state.camera.dist = 10 + 3 * glm::sin(delta * 1.333);
 
   state.view = state.camera.view();
   state.proj = glm::perspectiveFov(
-      glm::radians(90.f + 5 * glm::sin(glm::pi<float>() + delta / 100)),
-      (float)WIDTH, (float)HEIGHT, 0.1f, 100.0f);
+      glm::radians(90.f + 5 * glm::sin(glm::pi<float>() + delta)), (float)WIDTH,
+      (float)HEIGHT, 0.1f, 100.0f);
 
-  state.model.matrix =
-      glm::scale(
-          glm::vec3(scale, scale, scale)) * // scale can be edited with keys
-      glm::scale(glm::vec3(1, -1, 1)) *
-      glm::translate(-state.model.centre);
+  state.model.matrix = glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
+                       glm::translate(-state.model.centre);
 }
 
 void handleEvent(SDL_Event event) {
@@ -216,26 +234,15 @@ void handleEvent(SDL_Event event) {
       window.clearPixels();
       break;
     case SDLK_b: {
-
+      std::cout << "frame: " << state.frame << std::endl;
     } break;
     case SDLK_u:
       state.unfilled_triangle = randomtriangleinside(window);
-      linetriangle(window, state.unfilled_triangle);
       break;
     case SDLK_f:
       state.filled_triangle = randomtriangleinside(window);
-      filledtriangle(window, state.filled_triangle);
       break;
-    case SDLK_x:
-      std::cout << "scale\t"
-                << "x\t"
-                << "y\t"
-                << "z\t" << std::endl;
-      std::cin >> scale >> x >> y >> z;
-      std::cout << "scale\t"
-                << "x\t"
-                << "y\t"
-                << "z\t" << std::endl;
+      // case SDLK_x:
     }
     break;
   case SDL_MOUSEBUTTONDOWN:
