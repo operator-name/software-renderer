@@ -152,11 +152,15 @@ void update() {
 
   float delta = (state.frame / FPS); // s since start
 
-  state.camera.yaw = delta / 50;
+  state.camera.yaw = glm::sin(delta / 30) * 2;
   state.camera.pitch = glm::cos(delta / 50) / 2;
   state.camera.dist = 10 + 3 * glm::sin(delta / 50);
 
   state.view = state.camera.view();
+  state.proj = glm::perspectiveFov(
+      glm::radians(90.f + 5 * glm::sin(glm::pi<float>() + delta / 100)),
+      (float)WIDTH, (float)HEIGHT, 0.1f, 100.0f);
+
   state.model.matrix =
       glm::scale(
           glm::vec3(scale, scale, scale)) * // scale can be edited with keys
