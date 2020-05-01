@@ -50,11 +50,108 @@ std::vector<glmt::vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
   return points;
 }
 
-template <glmt::COLOUR_SPACE CS>
+// template <glmt::COLOUR_SPACE CS>
+// void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
+//           glmt::colour<CS> colour) {
+//   for (auto const &p : naiveline(start, end)) {
+//     window.setPixelColour(p.x, p.y, colour.argb8888());
+//   }
+// }
+
+#include <algorithm>
+
+// xiaolin wu's AA line algorithm
+// translated from wikipedia
+// https://en.wikipedia.org/wiki/Xiaolin_Wu's_line_algorithm
 void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
-          glmt::colour<CS> colour) {
-  for (auto const &p : naiveline(start, end)) {
-    window.setPixelColour(p.x, p.y, colour.argb8888());
+          glmt::rgbf01 colour) {
+  // To match functions
+  auto plot = [&](int x, int y, float c) -> void {
+    uint32_t packed = window.getPixelColour(x, y);
+    // int a = (packed >> 24) & 255;
+    int r = (packed >> 16) & 255;
+    int g = (packed >> 8) & 255;
+    int b = (packed >> 0) & 255;
+    glmt::rgbf01 curr(r / 255.f, g / 255.f, b / 255.f);
+
+    glmt::rgbf01 next = glm::mix(glm::vec3(curr), glm::vec3(colour), c);
+    window.setPixelColour(x, y, next.argb8888());
+  };
+
+  // definition as per wikipedia begins
+  auto ipart = [](float x) -> float { return glm::floor(x); };
+  auto fpart = [](float x) -> float { return glm::fract(x); };
+  auto rfpart = [](float x) -> float { return 1 - glm::fract(x); };
+
+  // save from having to cast unsigned int to float
+  float x0 = start.x;
+  float y0 = start.y;
+  float x1 = end.x;
+  float y1 = end.y;
+
+  const bool steep = glm::abs(y1 - y0) > glm::abs(x1 - x0);
+
+  if (steep) {
+    std::swap(x0, y0);
+    std::swap(x1, y1);
+  }
+  if (x0 > x1) {
+    std::swap(x0, x1);
+    std::swap(y0, y1);
+  }
+
+  float dx = x1 - x0;
+  float dy = y1 - y0;
+  float gradient = (dx == 0) ? 1 : dy / dx;
+
+  // handle first endpoint
+  int xpx11;
+  float intery;
+  {
+    const float xend = glm::round(x0);
+    const float yend = y0 + gradient * (xend - x0);
+    const float xgap = rfpart(x0 + 0.5);
+    xpx11 = xend; // used in main loop
+    const int ypx11 = ipart(yend);
+    if (steep) {
+      plot(ypx11, xpx11, rfpart(yend) * xgap);
+      plot(ypx11 + 1, xpx11, fpart(yend) * xgap);
+    } else {
+      plot(xpx11, ypx11, rfpart(yend) * xgap);
+      plot(xpx11, ypx11 + 1, fpart(yend) * xgap);
+    }
+    intery = yend + gradient; // first y intersection for the main loop
+  }
+
+  // handle second endpoint
+  int xpx12;
+  {
+    const float xend = glm::round(x1);
+    const float yend = y1 + gradient * (xend - x1);
+    const float xgap = rfpart(x1 + 0.5);
+    xpx12 = xend; // this will be used in the main loop
+    const int ypx12 = ipart(yend);
+    if (steep) {
+      plot(ypx12, xpx12, rfpart(yend) * xgap);
+      plot(ypx12 + 1, xpx12, fpart(yend) * xgap);
+    } else {
+      plot(xpx12, ypx12, rfpart(yend) * xgap);
+      plot(xpx12, ypx12 + 1, fpart(yend) * xgap);
+    }
+  }
+
+  if (steep) {
+    for (int x = xpx11 + 1; x < xpx12; x++) {
+      plot(ipart(intery), x, rfpart(intery));
+      plot(ipart(intery) + 1, x, fpart(intery));
+      intery += gradient;
+    }
+  } else {
+    for (int x = xpx11 + 1; x < xpx12; x++) {
+      plot(x, ipart(intery), rfpart(intery));
+      plot(x, ipart(intery) + 1, fpart(intery));
+      intery += gradient;
+    }
   }
 }
 

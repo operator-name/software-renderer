@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/polar_coordinates.hpp>
 #include <glm/gtx/transform.hpp>
 
 #include <glm/gtx/io.hpp>
@@ -12,7 +13,8 @@
 #include <cstdlib>
 
 #define FPS 30.0
-#define FRAMES (FPS * 30)
+#define TIME 30.0
+#define FRAMES (FPS * TIME)
 #define WRITE_FILE true
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
@@ -28,7 +30,6 @@ void handleEvent(SDL_Event event);
 
 // TODO: move into State struct
 sdw::window window;
-glmt::PPM ppm;
 
 // strictly for what is supported for rendering, whereas glmt::OBJ may include
 // more data that the renderer does not support
@@ -77,6 +78,8 @@ struct State {
   } sdl;
 
   unsigned int frame = -1; // update called first which incremets frame
+  unsigned int logic = -1; // logic is paused but frames keep advancing
+  bool update = true;
 } state;
 
 int main(int argc, char *argv[]) {
@@ -95,6 +98,12 @@ int main(int argc, char *argv[]) {
     }
 
     if (WRITE_FILE && state.frame < FRAMES) { // save frame as PPM
+      glmt::PPM ppm;
+      ppm.header.width = window.width;
+      ppm.header.height = window.height;
+      ppm.header.maxval = 255;
+      ppm.reserve();
+
       // COPY
       for (int y = 0; y < window.height; y++) {
         for (int x = 0; x < window.width; x++) {
@@ -128,6 +137,7 @@ void setup() {
   state.model.triangles = state.obj.triangles;
 
   // calculate "centre" of the model to use as origin for tansformations
+  // TODO: move to bound3
   glm::vec3 max(std::numeric_limits<float>::lowest());
   glm::vec3 min(std::numeric_limits<float>::max());
   for (auto const &t : state.model.triangles) {
@@ -143,10 +153,6 @@ void setup() {
   std::srand(0);
   window = sdw::window(WIDTH, HEIGHT, false);
 
-  ppm.header.width = window.width;
-  ppm.header.height = window.height;
-  ppm.header.maxval = 255;
-  ppm.reserve();
   std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps" << std::endl;
 }
 
@@ -189,18 +195,28 @@ void draw() {
 void update() {
   state.frame++;
 
-  float delta = (state.frame / FPS); // s since start
+  if (!state.update) {
+    return;
+  }
 
-  state.camera.yaw = glm::sin(delta * 1.1) * 2;
-  state.camera.pitch = glm::cos(delta * 0.7) / 2;
-  state.camera.dist = 10 + 3 * glm::sin(delta * 1.333);
+  state.logic++;
+
+  float delta = (state.logic / FPS); // s since start
+
+  // state.camera.yaw = glm::sin(delta / 2) * 2;
+  // state.camera.pitch = (-glm::abs(glm::sin(delta / 3)) + 0.5) * 1.5;
+  float spoon = glm::atan(glm::atan(delta - TIME / 3) * glm::log(delta + 0.5));
+  state.camera.dist = 10 - 2 * spoon;
 
   state.view = state.camera.view();
-  state.proj = glm::perspectiveFov(
-      glm::radians(90.f + 5 * glm::sin(glm::pi<float>() + delta)), (float)WIDTH,
-      (float)HEIGHT, 0.1f, 100.0f);
+  state.proj = glm::perspectiveFov(glm::radians(100.f), (float)WIDTH,
+                                   (float)HEIGHT, 0.1f, 100.0f);
 
-  state.model.matrix = glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
+  glm::mat4 fun = glm::rotate(
+      delta,
+      glm::euclidean(glm::vec2(glm::sin(delta / 3), glm::cos(delta / 5))));
+  state.model.matrix = fun *
+                       glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
                        glm::translate(-state.model.centre);
 }
 
@@ -233,9 +249,51 @@ void handleEvent(SDL_Event event) {
     case SDLK_c:
       window.clearPixels();
       break;
-    case SDLK_b: {
-      std::cout << "frame: " << state.frame << std::endl;
-    } break;
+    case SDLK_d:
+      std::cout << "[DEBUG] state.frame: " << state.frame << std::endl;
+      break;
+    case SDLK_p:
+      state.update = !state.update;
+      std::cout << "[DEBUG] state.update: " << (state.update ? "true" : "false")
+                << std::endl;
+      break;
+    case SDLK_s: {
+      std::cout << "[DEBUG] saving frame to file debug.ppm" << std::endl;
+
+      glmt::PPM ppm;
+      ppm.header.width = window.width;
+      ppm.header.height = window.height;
+      ppm.header.maxval = 255;
+      ppm.reserve();
+
+      // COPY
+      for (int y = 0; y < window.height; y++) {
+        for (int x = 0; x < window.width; x++) {
+          uint32_t packed = window.getPixelColour(x, y);
+          // int a = (packed >> 24) & 255;
+          int r = (packed >> 16) & 255;
+          int g = (packed >> 8) & 255;
+          int b = (packed >> 0) & 255;
+
+          glmt::rgbf01 rgbf(r / 255.f, g / 255.f, b / 255.f);
+          ppm[glmt::vec2t(x, y)] = rgbf;
+        }
+      }
+
+      {
+        std::ofstream file("debug.ppm");
+        file << ppm;
+      }
+
+      std::cout << "[DEBUG] frame saved to debug.ppm, opening..." << std::endl;
+      sdw::window debug = texture_window("debug.ppm");
+      std::cout << "[DEBUG] press enter to close debug and continue..."
+                << std::endl;
+      std::cin.get();
+      debug.close();
+      break;
+    }
+
     case SDLK_u:
       state.unfilled_triangle = randomtriangleinside(window);
       break;

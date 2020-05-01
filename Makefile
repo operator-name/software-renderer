@@ -67,12 +67,14 @@ $(WINDOW_OBJECT):
 run: $(EXECUTABLE)
 	./$(EXECUTABLE)
 
+mp4: PPM/frame00000.ppm
+	ffmpeg -framerate 30 -i PPM/frame%05d.ppm -c:v libx264 -preset veryslow -crf 17 -tune animation out.mp4
+
 dev:
 	clang-format --style="{NamespaceIndentation: All}" -i *.*pp
 	clear
 	make speedy
-	make run 	
-	ffmpeg -framerate 30 -i PPM/frame%05d.ppm -c:v libx264 -preset veryslow -crf 17 -tune animation out.mp4
+	make run
 
 # Files to remove during clean
 clean:
