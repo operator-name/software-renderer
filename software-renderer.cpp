@@ -11,6 +11,7 @@
 
 #include <cstdlib>
 
+#define FPS 30
 #define N 2
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
@@ -41,18 +42,18 @@ struct Model {
 struct Camera {
   glmt::vec3w target = glm::vec4(0, 0, 0, 1);
 
-  float dist = -10.2f;
+  float dist = 10.2f;
   float pitch = 0;
   float yaw = 0.001;
-  float rot_velocity = 0.0002f;
-  float velocity = 0.003f;
+  float rot_velocity = 0.02f;
+  float velocity = 0.03f;
 
   // "look at" but with orbit style configuration
   glm::mat4 view() {
-    glm::vec4 pos = glm::vec4(0, 0, dist, 0) + target;
-    glm::mat4 rot = glm::rotate(yaw, glm::vec3(0, 1, 0)) *
-                    glm::rotate(pitch, glm::vec3(1, 0, 0));
-    return glm::translate(-glm::vec3(pos)) * rot;
+    glm::vec4 pos = glm::vec4(0, 0, -dist, 0) + target;
+    glm::mat4 rot = glm::rotate(pitch, glm::vec3(1, 0, 0)) *
+                    glm::rotate(yaw, glm::vec3(0, 1, 0));
+    return glm::translate(glm::vec3(pos)) * rot;
   }
 };
 
@@ -96,6 +97,8 @@ void setup() {
   state.obj = parse_obj("cornell-box.obj");
 
   state.model.triangles = state.obj.triangles;
+
+  // calculate "centre" of the model to use as origin for tansformations
   glm::vec3 max(std::numeric_limits<float>::lowest());
   glm::vec3 min(std::numeric_limits<float>::max());
   for (auto const &t : state.model.triangles) {
@@ -113,7 +116,7 @@ void setup() {
 }
 
 void draw() {
-  // window.clearPixels();
+  window.clearPixels();
   for (auto const &t : state.model.triangles) {
     std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);
@@ -123,8 +126,8 @@ void draw() {
       // manually apply stuff
       // glmt::vec3w ws = state.model.matrix * ls;
       // glmt::vec3c cs = state.proj * state.view * ws;
-      // clip
-      // glm::vec4 ss = cs;
+      // clipping done here
+      // glm::vec4 ss = cs; // viewport transformation below
       // ss /= ss.w;
       // ss *= glm::vec4(0.5, 0.5, 1, 1);
       // ss += glm::vec4(0.5, 0.5, 0, 0);
@@ -139,19 +142,25 @@ void draw() {
       ft[i] = glm::vec2(ss);
     }
 
-    filledtriangle(window, std::make_tuple(ft, c));
-    // linetriangle(window, std::make_tuple(ft, c));
+    // filledtriangle(window, std::make_tuple(ft, c));
+    linetriangle(window, std::make_tuple(ft, c));
   }
 }
 
 void update() {
   state.frame++;
 
+  float delta = (state.frame / FPS); // s since start
+
+  state.camera.yaw = delta / 50;
+  state.camera.pitch = glm::cos(delta / 50) / 2;
+  state.camera.dist = 10 + 3 * glm::sin(delta / 50);
+
   state.view = state.camera.view();
   state.model.matrix =
       glm::scale(
           glm::vec3(scale, scale, scale)) * // scale can be edited with keys
-      // glm::scale(glm::vec3(1, -1, 1)) *
+      glm::scale(glm::vec3(1, -1, 1)) *
       glm::translate(-state.model.centre);
 }
 
@@ -160,16 +169,26 @@ void handleEvent(SDL_Event event) {
   case SDL_KEYDOWN:
     switch (event.key.keysym.sym) {
     case SDLK_LEFT:
-      std::cout << "LEFT" << std::endl;
+      state.camera.yaw += state.camera.rot_velocity;
+      // std::cout << "LEFT" << std::endl;
       break;
     case SDLK_RIGHT:
-      std::cout << "RIGHT" << std::endl;
+      state.camera.yaw -= state.camera.rot_velocity;
+      // std::cout << "RIGHT" << std::endl;
       break;
     case SDLK_UP:
-      std::cout << "UP" << std::endl;
+      state.camera.dist -= state.camera.velocity;
+      // std::cout << "UP" << std::endl;
       break;
     case SDLK_DOWN:
-      std::cout << "DOWN" << std::endl;
+      state.camera.dist += state.camera.velocity;
+      // std::cout << "DOWN" << std::endl;
+      break;
+    case SDLK_PAGEUP:
+      state.camera.pitch += state.camera.rot_velocity;
+      break;
+    case SDLK_PAGEDOWN:
+      state.camera.pitch -= state.camera.rot_velocity;
       break;
     case SDLK_c:
       window.clearPixels();
