@@ -40,6 +40,17 @@ namespace glmt {
                           ((*this).g << 8) + (*this).b;
         return packed;
       }
+
+      static colour<COLOUR_SPACE::RGBA8888> fromargb8888packed(uint32_t argb) {
+        colour<COLOUR_SPACE::RGBA8888> rgba;
+
+        rgba.a = (argb >> 24) & 255;
+        rgba.r = (argb >> 16) & 255;
+        rgba.g = (argb >> 8) & 255;
+        rgba.b = (argb >> 0) & 255;
+        
+        return rgba;
+      }
     };
     template <> class colour<COLOUR_SPACE::RGB888> : public glm::u8vec3 {
     public:
@@ -60,7 +71,7 @@ namespace glmt {
       };
     };
 
-    typedef colour<COLOUR_SPACE::RGBA8888> rgb8888;
+    typedef colour<COLOUR_SPACE::RGBA8888> rgba8888;
     typedef colour<COLOUR_SPACE::RGB888> rgb888;
     typedef colour<COLOUR_SPACE::RBGFLOAT01> rgbf01;
 

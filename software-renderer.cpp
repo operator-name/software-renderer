@@ -78,8 +78,8 @@ struct State {
   } sdl;
 
   unsigned int frame = -1; // update called first which incremets frame
-  unsigned int logic = -1; // logic is paused but frames keep advancing
-  bool update = true;
+  unsigned int logic = -1;
+  bool update = true; // logic is paused but frames keep advancing
 } state;
 
 int main(int argc, char *argv[]) {
@@ -105,16 +105,13 @@ int main(int argc, char *argv[]) {
       ppm.reserve();
 
       // COPY
-      for (int y = 0; y < window.height; y++) {
-        for (int x = 0; x < window.width; x++) {
-          uint32_t packed = window.getPixelColour(x, y);
-          // int a = (packed >> 24) & 255;
-          int r = (packed >> 16) & 255;
-          int g = (packed >> 8) & 255;
-          int b = (packed >> 0) & 255;
+      for (unsigned int y = 0; y < window.height; y++) {
+        for (unsigned int x = 0; x < window.width; x++) {
+          // to glm::vec3, dropping the alpha channel then divide by 255.f
+          glmt::rgbf01 curr =
+              glm::vec3(window.getPixelColour(glmt::vec2p(x, y))) / 255.f;
 
-          glmt::rgbf01 rgbf(r / 255.f, g / 255.f, b / 255.f);
-          ppm[glmt::vec2t(x, y)] = rgbf;
+          ppm[glmt::vec2t(x, y)] = curr;
         }
       }
 
@@ -260,29 +257,25 @@ void handleEvent(SDL_Event event) {
     case SDLK_s: {
       std::cout << "[DEBUG] saving frame to file debug.ppm" << std::endl;
 
-      glmt::PPM ppm;
-      ppm.header.width = window.width;
-      ppm.header.height = window.height;
-      ppm.header.maxval = 255;
-      ppm.reserve();
+      glmt::PPM debug_ppm;
+      debug_ppm.header.width = window.width;
+      debug_ppm.header.height = window.height;
+      debug_ppm.header.maxval = 255;
+      debug_ppm.reserve();
 
       // COPY
-      for (int y = 0; y < window.height; y++) {
-        for (int x = 0; x < window.width; x++) {
-          uint32_t packed = window.getPixelColour(x, y);
-          // int a = (packed >> 24) & 255;
-          int r = (packed >> 16) & 255;
-          int g = (packed >> 8) & 255;
-          int b = (packed >> 0) & 255;
+      for (unsigned int y = 0; y < window.height; y++) {
+        for (unsigned int x = 0; x < window.width; x++) {
+          glmt::rgbf01 curr =
+              glm::vec3(window.getPixelColour(glmt::vec2p(x, y))) / 255.f;
 
-          glmt::rgbf01 rgbf(r / 255.f, g / 255.f, b / 255.f);
-          ppm[glmt::vec2t(x, y)] = rgbf;
+          debug_ppm[glmt::vec2t(x, y)] = curr;
         }
       }
 
       {
         std::ofstream file("debug.ppm");
-        file << ppm;
+        file << debug_ppm;
       }
 
       std::cout << "[DEBUG] frame saved to debug.ppm, opening..." << std::endl;

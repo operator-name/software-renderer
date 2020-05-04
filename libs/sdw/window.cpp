@@ -78,19 +78,19 @@ bool window::pollForInputEvents(SDL_Event *event) {
   return false;
 }
 
-void window::setPixelColour(int x, int y, uint32_t colour) {
-  if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
+void window::setPixelColour(glmt::vec2p pos, uint32_t colour) {
+  if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
     // std::cout << x << "," << y << " not on visible screen area" << std::endl;
   } else
-    pixelBuffer[(y * width) + x] = colour;
+    pixelBuffer[(pos.y * width) + pos.x] = colour;
 }
 
-uint32_t window::getPixelColour(int x, int y) {
-  if ((x < 0) || (x >= width) || (y < 0) || (y >= height)) {
+glmt::rgba8888 window::getPixelColour(glmt::vec2p pos) {
+  if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
     // std::cout << x << "," << y << " not on visible screen area" << std::endl;
-    return -1;
+    return glmt::rgba8888::fromargb8888packed(-1); // TODO: return maybe? add semantics to vec2s?
   } else
-    return pixelBuffer[(y * width) + x];
+    return glmt::rgba8888::fromargb8888packed(pixelBuffer[(pos.y * width) + pos.x]);
 }
 
 void window::clearPixels() {

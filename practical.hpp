@@ -67,15 +67,11 @@ void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
           glmt::rgbf01 colour) {
   // To match functions
   auto plot = [&](int x, int y, float c) -> void {
-    uint32_t packed = window.getPixelColour(x, y);
-    // int a = (packed >> 24) & 255;
-    int r = (packed >> 16) & 255;
-    int g = (packed >> 8) & 255;
-    int b = (packed >> 0) & 255;
-    glmt::rgbf01 curr(r / 255.f, g / 255.f, b / 255.f);
+    glmt::rgbf01 curr =
+        glm::vec3(window.getPixelColour(glmt::vec2p(x, y))) / 255.f;
 
     glmt::rgbf01 next = glm::mix(glm::vec3(curr), glm::vec3(colour), c);
-    window.setPixelColour(x, y, next.argb8888());
+    window.setPixelColour(glmt::vec2p(x, y), next.argb8888());
   };
 
   // definition as per wikipedia begins
@@ -267,7 +263,8 @@ void filledtriangle(
         // outside of triangle
         continue;
       }
-      window.setPixelColour(x, y, std::get<1>(triangle).argb8888());
+      window.setPixelColour(glmt::vec2p(x, y),
+                            std::get<1>(triangle).argb8888());
     }
   }
 }
@@ -291,7 +288,7 @@ void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
 
       glmt::vec2t tx = bc[0] * glm::vec2(tex[0]) + bc[1] * glm::vec2(tex[1]) +
                        bc[2] * glm::vec2(tex[2]);
-      window.setPixelColour(x, y, ppm[tx].argb8888());
+      window.setPixelColour(glmt::vec2p(x, y), ppm[tx].argb8888());
     }
   }
 }
@@ -347,8 +344,8 @@ sdw::window texture_window(std::string filename, std::string title = "") {
       sdw::window(ppm.header.width, ppm.header.height, false,
                   title.empty() ? filename : title);
 
-  for (int h = 0; h < texture_window.height; h++) {
-    for (int w = 0; w < texture_window.width; w++) {
+  for (unsigned int h = 0; h < texture_window.height; h++) {
+    for (unsigned int w = 0; w < texture_window.width; w++) {
       // PPM::operator[] is GL_REPEAT by default
       glm::ivec3 c = ppm[glm::ivec2(w, h)] * 255.0f;
       float red = c.r;
@@ -357,7 +354,7 @@ sdw::window texture_window(std::string filename, std::string title = "") {
 
       uint32_t packed =
           (255 << 24) + (int(red) << 16) + (int(green) << 8) + int(blue);
-      texture_window.setPixelColour(w, h, packed);
+      texture_window.setPixelColour(glmt::vec2p(w, h), packed);
     }
   }
 
