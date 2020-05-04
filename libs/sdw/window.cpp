@@ -18,6 +18,7 @@ namespace sdw {
     pixelBuffer = new uint32_t[width * height];
     depthBuffer = new float[width * height];
     clearPixels();
+    clearDepthBuffer();
 
     uint32_t flags = SDL_WINDOW_OPENGL;
     if (fullscreen)
@@ -113,6 +114,9 @@ namespace sdw {
 
   void window::clearPixels() {
     memset(pixelBuffer, 0, width * height * sizeof(uint32_t));
+  }
+
+  void window::clearDepthBuffer() {
     for (size_t i = 0; i < width * height; i++) {
       // captures 1/z, instead of z as suggested so
       // std::numeric_limits<float>::infinity() is not used nothing on screen is

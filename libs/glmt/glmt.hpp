@@ -4,6 +4,7 @@
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/io.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <fstream>

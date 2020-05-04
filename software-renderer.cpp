@@ -35,13 +35,22 @@ sdw::window window;
 // strictly for what is supported for rendering, whereas glmt::OBJ may include
 // more data that the renderer does not support
 struct Model {
-  typedef std::array<glmt::vec3l, 3> triangle_points;
-  typedef std::tuple<triangle_points, glmt::rgbf01> triangle;
+  typedef std::array<glmt::vec3l, 3> triangle;
+
   std::vector<triangle> triangles;
+  std::vector<glmt::rgbf01> colours;
 
   glm::mat4 matrix; // model matrix, TODO: proper types
   glm::vec3 centre;
   glm::vec3 scale = glm::vec3(1, 1, 1);
+  glm::vec3 position;
+
+  enum class RenderMode {
+    WIREFRAME,
+    FILL,
+  };
+
+  RenderMode mode = RenderMode::WIREFRAME;
 };
 
 struct Camera {
@@ -155,63 +164,47 @@ int main(int argc, char *argv[]) {
   }
 }
 
-void setup() {
-  state.obj = parse_obj("logo.obj");
-
-  std::cout << state.obj.triangles.size() << std::endl;
-  std::cout << state.obj.colours.size() << std::endl;
-  std::cout << state.obj.textures.size() << std::endl;
-
-  for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
-    state.model.triangles.push_back(std::make_tuple(
-        state.obj.triangles[i],
-        glmt::rgbf01(glm::linearRand(0.f, 1.f), glm::linearRand(0.f, 1.f),
-                     glm::linearRand(0.f, 1.f))));
-  }
-
-  // calculate "centre" of the model to use as origin for tansformations
-  // TODO: move to bound3
+Model align(Model model) {
   glm::vec3 max(std::numeric_limits<float>::lowest());
   glm::vec3 min(std::numeric_limits<float>::max());
-  for (auto const &t : state.model.triangles) {
-    for (glmt::vec3l point : std::get<0>(t)) {
+  for (const auto &triangle : model.triangles) {
+    for (const glmt::vec3l point : triangle) {
       max = glm::max(max, glm::vec3(point));
       min = glm::min(min, glm::vec3(point));
     }
   }
-  state.model.centre = (min + max) / 2.f;
-  float scale = 9 / glm::compMax(glm::abs(max - min));
-  state.model.scale = glm::vec3(scale, scale, scale);
 
-  // state.obj = parse_obj("cornell-box.obj");
+  model.centre = glm::vec3(min + max) / 2.f;
+  float scale = 1 / glm::compMax(glm::abs(max - min));
+  model.scale = glm::vec3(scale, scale, scale);
 
-  // if (!state.obj.colours.empty()) {
-  //   for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
-  //     // state.obj.colours[i] =
-  //     //     glmt::rgbf01(glm::linearRand(0.f, 1.f),
-  //     glm::linearRand(0.f, 1.f),
-  //         //                  glm::linearRand(0.f, 1.f));
-  //         state.model.triangles.push_back(
-  //             std::make_tuple(state.obj.triangles[i], state.obj.colours[i]));
-  //   }
-  // }
-  // // calculate "centre" of the model to use as origin for tansformations
-  // // TODO: move to bound3
-  // glm::vec3 max(std::numeric_limits<float>::lowest());
-  // glm::vec3 min(std::numeric_limits<float>::max());
-  // for (auto const &t : state.model.triangles) {
-  //   for (glmt::vec3l point : std::get<0>(t)) {
-  //     max = glm::max(max, glm::vec3(point));
-  //     min = glm::min(min, glm::vec3(point));
-  //   }
-  // }
-  // state.model.centre = (min + max) / 2.f;
-  // float scale = 5 / glm::compMax(glm::abs(max - min));
-  // state.model.scale = glm::vec3(scale, scale, scale);
+  return model;
+}
 
+void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
+
+  // state.obj = parse_obj("logo.obj");
+
+  // for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
+  //   state.model.triangles.push_back(std::make_tuple(
+  //       state.obj.triangles[i],
+  //       glmt::rgbf01(glm::linearRand(0.f, 1.f), glm::linearRand(0.f, 1.f),
+  //                    glm::linearRand(0.f, 1.f))));
+  // }
+
+  // state.model = align(state.model);
+  // state.model.scale *= 9;
+
+  state.obj = parse_obj("cornell-box.obj");
+  state.model.triangles = state.obj.triangles;
+  state.model.colours = state.obj.colours;
+
+  state.model = align(state.model);
+  state.model.scale *= 5;
+
   window = sdw::window(WIDTH, HEIGHT, false);
 
   std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps" << std::endl;
@@ -219,15 +212,15 @@ void setup() {
 
 void draw() {
   window.clearPixels();
-  for (auto const &t : state.model.triangles) {
-    auto c = std::get<1>(t);
+  window.clearDepthBuffer();
+  for (size_t i = 0; i < state.model.triangles.size(); i++) {
+    std::array<glmt::vec3s, 3> transformed;
+    std::array<glmt::vec2s, 3> transformed2;
 
-    std::array<glmt::vec3s, 3> zt;
-    std::array<glmt::vec2s, 3> ft;
-    for (size_t i = 0; i < ft.size(); i++) {
-
-      glmt::vec3l ls = std::get<0>(t)[i];
-      // manually apply stuff
+    for (size_t t = 0; t < transformed.size(); t++) {
+      // manually apply stuff, need to unpack if clipping to be implemented
+      // although clipping can be done in w space if using glm::project
+      // glmt::vec3l ls = std::get<0>(t)[i];
       // glmt::vec3w ws = state.model.matrix * ls;
       // glmt::vec3c cs = state.proj * state.view * ws;
       // clipping done here
@@ -239,17 +232,26 @@ void draw() {
       // 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
       //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
 
-      glmt::vec3s ss =
-          glm::vec4(glm::project(glm::vec3(ls), state.view * state.model.matrix,
-                                 state.proj, glm::vec4(0, 0, WIDTH, HEIGHT)),
+      glm::vec4 ss =
+          glm::vec4(glm::project(glm::vec3(state.model.triangles[i][t]),
+                                 state.view * state.model.matrix, state.proj,
+                                 glm::vec4(0, 0, WIDTH, HEIGHT)),
                     1);
 
-      ft[i] = glm::vec2(ss);
-      zt[i] = ss;
+      transformed[t] = ss;
+      transformed2[t] = glm::vec2(ss);
     }
 
-    // linetriangle(window, std::make_tuple(ft, c));
-    filledtriangle(window, std::make_tuple(zt, c));
+    switch (state.model.mode) {
+    case Model::RenderMode::WIREFRAME:
+      linetriangle(window,
+                   std::make_tuple(transformed2, state.model.colours[i]));
+      break;
+    case Model::RenderMode::FILL:
+      filledtriangle(window,
+                     std::make_tuple(transformed, state.model.colours[i]));
+      break;
+    }
   }
 
   linetriangle(window, state.unfilled_triangle);
@@ -282,10 +284,10 @@ void update() {
   glm::mat4 fun = glm::rotate(
       delta,
       glm::euclidean(glm::vec2(glm::sin(delta / 3), glm::cos(delta / 5))));
-  state.model.matrix = // fun *
-      glm::scale(state.model.scale) *
-      glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
-      glm::translate(-state.model.centre);
+  state.model.matrix = fun * glm::translate(state.model.position) *
+                       glm::scale(state.model.scale) *
+                       glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
+                       glm::translate(-state.model.centre);
 }
 
 void handleEvent(SDL_Event event) {

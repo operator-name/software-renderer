@@ -30,6 +30,7 @@ namespace sdw {
     void setPixelColour(glmt::vec2p pos, float invz, const uint32_t colour);
     glmt::rgba8888 getPixelColour(glmt::vec2p pos);
     void clearPixels();
+    void clearDepthBuffer();
 
     void printMessageAndQuit(const char *message, const char *error);
   };
