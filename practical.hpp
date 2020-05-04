@@ -54,7 +54,7 @@ std::vector<glmt::vec2p> naiveline(glmt::vec2<T> start, glmt::vec2<T> end) {
 // void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
 //           glmt::colour<CS> colour) {
 //   for (auto const &p : naiveline(start, end)) {
-//     window.setPixelColour(p.x, p.y, colour.argb8888());
+//     window.setPixelColour(p, colour.argb8888());
 //   }
 // }
 

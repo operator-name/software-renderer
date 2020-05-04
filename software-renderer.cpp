@@ -51,7 +51,32 @@ struct Camera {
   float rot_velocity = 0.02f;
   float velocity = 0.03f;
 
-  // "look at" but with orbit style configuration
+  // regular lookat, defaults positive y as up
+  glm::mat4 lookat(glm::vec3 from, glm::vec3 to,
+                   glm::vec3 up = glm::vec3(0, 1, 0)) {
+    glm::vec3 forward = glm::normalize(from - to);
+    glm::vec3 right = glm::cross(glm::normalize(up), forward);
+
+    glm::mat4 mat(1);
+
+    mat[0][0] = right.x;
+    mat[0][1] = right.y;
+    mat[0][2] = right.z;
+    mat[1][0] = up.x;
+    mat[1][1] = up.y;
+    mat[1][2] = up.z;
+    mat[2][0] = forward.x;
+    mat[2][1] = forward.y;
+    mat[2][2] = forward.z;
+
+    mat[3][0] = from.x;
+    mat[3][1] = from.y;
+    mat[3][2] = from.z;
+
+    return mat;
+  }
+
+  // "look at" but with orbit style configuration, nicer for demos
   glm::mat4 view() {
     glm::vec4 pos = glm::vec4(0, 0, -dist, 0) + target;
     glm::mat4 rot = glm::rotate(pitch, glm::vec3(1, 0, 0)) *
@@ -129,7 +154,10 @@ int main(int argc, char *argv[]) {
 }
 
 void setup() {
-  state.obj = parse_obj("cornell-box.obj");
+  // state.obj = parse_obj("cornell-box.obj");
+  state.obj = parse_obj("HackspaceLogo/logo.obj");
+
+  exit(1);
 
   state.model.triangles = state.obj.triangles;
 

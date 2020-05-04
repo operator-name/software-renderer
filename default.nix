@@ -10,6 +10,7 @@ stdenv.mkDerivation rec {
     clang_9 # clang-format
     clang-tools # clang-format
     meshlab
+    nemiver
 
     SDL2
 
