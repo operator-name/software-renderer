@@ -557,7 +557,7 @@ namespace glmt {
         return input;
       }
       friend std::ostream &operator<<(std::ostream &output, const OBJ_v &v) {
-        std::cout << "OBJ_v " << v.v;
+        output << "OBJ_v " << v.v;
         return output;
       }
     };
@@ -574,7 +574,7 @@ namespace glmt {
         return input;
       }
       friend std::ostream &operator<<(std::ostream &output, const OBJ_vt &vt) {
-        std::cout << "OBJ_vt " << vt.vt;
+        output << "OBJ_vt " << vt.vt;
         return output;
       }
     };

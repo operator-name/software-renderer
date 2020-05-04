@@ -49,6 +49,7 @@ struct Model {
   enum class RenderMode {
     WIREFRAME,
     FILL,
+    RAYTRACE,
   };
 
   RenderMode mode = RenderMode::WIREFRAME;
@@ -164,6 +165,8 @@ int main(int argc, char *argv[]) {
   }
 }
 
+// sets centre and scale such that model "centre of mass" is at 0, 0 and is at
+// most 1 unit
 Model align(Model model) {
   glm::vec3 max(std::numeric_limits<float>::lowest());
   glm::vec3 min(std::numeric_limits<float>::max());
@@ -198,9 +201,9 @@ void setup() {
     }
     model = align(model);
 
-    model.scale *= 9;
+    model.scale *= 7;
     model.mode = Model::RenderMode::WIREFRAME;
-    model.position = glm::vec3(-4, 0, 0);
+    model.position = glm::vec3(-4, 5, 0);
 
     state.models.push_back(model);
   }
@@ -214,7 +217,21 @@ void setup() {
 
     model.scale *= 5;
     model.mode = Model::RenderMode::FILL;
-    model.position = glm::vec3(4, 0, 0);
+    model.position = glm::vec3(4, 5, 0);
+
+    state.models.push_back(model);
+  }
+  {
+    glmt::OBJ obj = parse_obj("cornell-box.obj");
+    Model model;
+
+    model.triangles = obj.triangles;
+    model.colours = obj.colours;
+    model = align(model);
+
+    model.scale *= 5;
+    model.mode = Model::RenderMode::RAYTRACE;
+    model.position = glm::vec3(0, -5, 0);
 
     state.models.push_back(model);
   }
@@ -229,42 +246,52 @@ void draw() {
   window.clearDepthBuffer();
 
   for (const auto &model : state.models) {
-    for (size_t i = 0; i < model.triangles.size(); i++) {
-      std::array<glmt::vec3s, 3> transformed;
-      std::array<glmt::vec2s, 3> transformed2;
+    if (model.mode == Model::RenderMode::RAYTRACE) {
+      float focal_length = 1 / glm::tan(90.0 / 2.0); // match glm::perspective
 
-      for (size_t t = 0; t < transformed.size(); t++) {
-        // manually apply stuff, need to unpack if clipping to be implemented
-        // although clipping can be done in w space if using glm::project
-        // glmt::vec3l ls = std::get<0>(t)[i];
-        // glmt::vec3w ws = state.model.matrix * ls;
-        // glmt::vec3c cs = state.proj * state.view * ws;
-        // clipping done here
-        // glm::vec4 ss = cs; // viewport transformation below
-        // ss /= ss.w;
-        // ss *= glm::vec4(0.5, 0.5, 1, 1);
-        // ss += glm::vec4(0.5, 0.5, 0, 0);
-        // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1],
-        // 0, 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
-        //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
-
-        glm::vec4 ss =
-            glm::vec4(glm::project(glm::vec3(model.triangles[i][t]),
-                                   state.view * model.matrix, state.proj,
-                                   glm::vec4(0, 0, WIDTH, HEIGHT)),
-                      1);
-
-        transformed[t] = ss;
-        transformed2[t] = glm::vec2(ss);
+      for (unsigned int y = 0; y < HEIGHT; y++) {
+        for (unsigned int x = 0; x < WIDTH; x++) {
+          // get ray
+          // get closest intersection of ray to triangle
+          // paint
+        }
       }
+    } else {
+      for (size_t i = 0; i < model.triangles.size(); i++) {
+        std::array<glmt::vec3s, 3> transformed;
+        std::array<glmt::vec2s, 3> transformed2;
 
-      switch (model.mode) {
-      case Model::RenderMode::WIREFRAME:
-        linetriangle(window, std::make_tuple(transformed2, model.colours[i]));
-        break;
-      case Model::RenderMode::FILL:
-        filledtriangle(window, std::make_tuple(transformed, model.colours[i]));
-        break;
+        for (size_t t = 0; t < transformed.size(); t++) {
+          // manually apply stuff, need to unpack if clipping to be implemented
+          // although clipping can be done in w space if using glm::project
+          // glmt::vec3l ls = std::get<0>(t)[i];
+          // glmt::vec3w ws = state.model.matrix * ls;
+          // glmt::vec3c cs = state.proj * state.view * ws;
+          // clipping done here
+          // glm::vec4 ss = cs; // viewport transformation below
+          // ss /= ss.w;
+          // ss *= glm::vec4(0.5, 0.5, 1, 1);
+          // ss += glm::vec4(0.5, 0.5, 0, 0);
+          // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1],
+          // 0, 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
+          //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
+
+          glm::vec4 ss =
+              glm::vec4(glm::project(glm::vec3(model.triangles[i][t]),
+                                     state.view * model.matrix, state.proj,
+                                     glm::vec4(0, 0, WIDTH, HEIGHT)),
+                        1);
+
+          transformed[t] = ss;
+          transformed2[t] = glm::vec2(ss);
+        }
+
+        if (model.mode == Model::RenderMode::WIREFRAME) {
+          linetriangle(window, std::make_tuple(transformed2, model.colours[i]));
+        } else if (model.mode == Model::RenderMode::FILL) {
+          filledtriangle(window,
+                         std::make_tuple(transformed, model.colours[i]));
+        }
       }
     }
   }
@@ -300,9 +327,17 @@ void update() {
     glm::mat4 fun = glm::rotate(
         delta, glm::euclidean(glm::vec2(glm::sin((delta + i) / 3),
                                         glm::cos((delta + i) / 5))));
+
+    // TODO: proper typing in glmt
+    // is this what we want? a translation of +y is intuitively upwards
+    // but that would mean glmt::d3::vec3s has +y up and glmt::d3::vec2s has +y
+    // down
+    glm::vec4 tp = glm::scale(glm::vec3(1, -1, 1)) *
+                   glm::vec4(state.models[i].position, 1);
+
     state.models[i].matrix =
-        glm::translate(state.models[i].position) *
-        (i == 0 ? fun : glm::mat4(1)) * glm::scale(state.models[i].scale) *
+        glm::translate(glm::vec3(tp)) * (i == 0 ? fun : glm::mat4(1)) *
+        glm::scale(state.models[i].scale) *
         glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
         glm::translate(-state.models[i].centre);
   }
