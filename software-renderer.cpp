@@ -15,7 +15,7 @@
 #define FPS 30.0
 #define TIME 30.0
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE true
+#define WRITE_FILE false
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 

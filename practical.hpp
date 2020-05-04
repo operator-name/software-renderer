@@ -207,27 +207,29 @@ void filledtriangleflat(sdw::window window, glmt::vec2s top,
   }
 }
 
-// why not barycentric coordinates
+// // why not barycentric coordinates
+// //
 // http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
-template <glmt::COLOUR_SPACE CS>
-void filledtriangle(
-    sdw::window window,
-    std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
-  std::sort(std::begin(std::get<0>(triangle)), std::end(std::get<0>(triangle)),
-            [](const glm::vec2 a, const glm::vec2 b) { return a.y < b.y; });
+// template <glmt::COLOUR_SPACE CS>
+// void filledtriangle(
+//     sdw::window window,
+//     std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
+//   std::sort(std::begin(std::get<0>(triangle)),
+//   std::end(std::get<0>(triangle)),
+//             [](const glm::vec2 a, const glm::vec2 b) { return a.y < b.y; });
 
-  glmt::vec2s top = std::get<0>(triangle)[0];
-  glmt::vec2s mid = std::get<0>(triangle)[1];
-  glmt::vec2s bot = std::get<0>(triangle)[2];
-  glmt::vec2s midi(
-      top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x), mid.y);
+//   glmt::vec2s top = std::get<0>(triangle)[0];
+//   glmt::vec2s mid = std::get<0>(triangle)[1];
+//   glmt::vec2s bot = std::get<0>(triangle)[2];
+//   glmt::vec2s midi(
+//       top.x + ((mid.y - top.y) / (bot.y - top.y)) * (bot.x - top.x), mid.y);
 
-  glmt::colour<CS> colour = std::get<1>(triangle);
-  linetriangle(window, triangle);
-  line(window, mid, midi, colour);
-  filledtriangleflat(window, top, mid, midi, colour);
-  filledtriangleflat(window, bot, mid, midi, colour);
-}
+//   glmt::colour<CS> colour = std::get<1>(triangle);
+//   linetriangle(window, triangle);
+//   line(window, mid, midi, colour);
+//   filledtriangleflat(window, top, mid, midi, colour);
+//   filledtriangleflat(window, bot, mid, midi, colour);
+// }
 
 glm::mat3 barycentric(std::array<glm::vec2, 3> t) {
   glm::vec3 t0 = glm::vec3(t[0], 1.0);
@@ -244,6 +246,30 @@ template <typename T>
 glm::vec3 barycentric(glmt::vec2<T> p, std::array<glmt::vec2<T>, 3> t) {
   std::array<glm::vec2, 3> triangle{t[0], t[1], t[2]};
   return barycentric(p, triangle);
+}
+
+template <glmt::COLOUR_SPACE CS>
+void filledtriangle(
+    sdw::window window,
+    std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
+  glmt::bound2s bounds(std::get<0>(triangle).begin(),
+                       std::get<0>(triangle).end());
+  // TODO: glmt::bound2::operator+ // largest bound which fits both
+  // TODO: glmt::bound2::operator- // smallest bound which fits both
+  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
+  bounds.max =
+      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+
+  for (int y = bounds.min.y; y <= bounds.max.y; y++) {
+    for (int x = bounds.min.x; x <= bounds.max.x; x++) {
+      glm::vec3 bc = barycentric(glmt::vec2s(x, y), std::get<0>(triangle));
+      if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) {
+        // outside of triangle
+        continue;
+      }
+      window.setPixelColour(x, y, std::get<1>(triangle).argb8888());
+    }
+  }
 }
 
 void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
