@@ -40,7 +40,8 @@ struct Model {
   std::vector<triangle> triangles;
   std::vector<glmt::rgbf01> colours;
 
-  glm::mat4 matrix; // model matrix, TODO: proper types
+  glm::mat4 matrix; // model matrix with below stuff applied, TODO: proper types
+
   glm::vec3 centre;
   glm::vec3 scale = glm::vec3(1, 1, 1);
   glm::vec3 position;
@@ -56,7 +57,7 @@ struct Model {
 struct Camera {
   glmt::vec3w target = glm::vec4(0, 0, 0, 1);
 
-  float dist = 10.2f;
+  float dist = 12.2f;
   float pitch = 0;
   float yaw = 0.001;
   float rot_velocity = 0.05f;
@@ -100,8 +101,7 @@ struct State {
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> filled_triangle;
 
-  glmt::OBJ obj;
-  Model model;
+  std::vector<Model> models;
 
   Camera camera;
   glm::mat4 view = glm::lookAt(glm::vec3(0.1, 0.01, -10), glm::vec3(0, 0, 0),
@@ -185,25 +185,39 @@ void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
+  {
+    glmt::OBJ obj = parse_obj("logo.obj");
+    Model model;
 
-  // state.obj = parse_obj("logo.obj");
+    model.triangles = obj.triangles;
+    // whilst we can't render textures, just render some random colour
+    for (size_t i = 0; i < obj.triangles.size(); i++) {
+      model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
+                                           glm::linearRand(0.f, 1.f),
+                                           glm::linearRand(0.f, 1.f)));
+    }
+    model = align(model);
 
-  // for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
-  //   state.model.triangles.push_back(std::make_tuple(
-  //       state.obj.triangles[i],
-  //       glmt::rgbf01(glm::linearRand(0.f, 1.f), glm::linearRand(0.f, 1.f),
-  //                    glm::linearRand(0.f, 1.f))));
-  // }
+    model.scale *= 9;
+    model.mode = Model::RenderMode::WIREFRAME;
+    model.position = glm::vec3(-4, 0, 0);
 
-  // state.model = align(state.model);
-  // state.model.scale *= 9;
+    state.models.push_back(model);
+  }
+  {
+    glmt::OBJ obj = parse_obj("cornell-box.obj");
+    Model model;
 
-  state.obj = parse_obj("cornell-box.obj");
-  state.model.triangles = state.obj.triangles;
-  state.model.colours = state.obj.colours;
+    model.triangles = obj.triangles;
+    model.colours = obj.colours;
+    model = align(model);
 
-  state.model = align(state.model);
-  state.model.scale *= 5;
+    model.scale *= 5;
+    model.mode = Model::RenderMode::FILL;
+    model.position = glm::vec3(4, 0, 0);
+
+    state.models.push_back(model);
+  }
 
   window = sdw::window(WIDTH, HEIGHT, false);
 
@@ -213,44 +227,45 @@ void setup() {
 void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
-  for (size_t i = 0; i < state.model.triangles.size(); i++) {
-    std::array<glmt::vec3s, 3> transformed;
-    std::array<glmt::vec2s, 3> transformed2;
 
-    for (size_t t = 0; t < transformed.size(); t++) {
-      // manually apply stuff, need to unpack if clipping to be implemented
-      // although clipping can be done in w space if using glm::project
-      // glmt::vec3l ls = std::get<0>(t)[i];
-      // glmt::vec3w ws = state.model.matrix * ls;
-      // glmt::vec3c cs = state.proj * state.view * ws;
-      // clipping done here
-      // glm::vec4 ss = cs; // viewport transformation below
-      // ss /= ss.w;
-      // ss *= glm::vec4(0.5, 0.5, 1, 1);
-      // ss += glm::vec4(0.5, 0.5, 0, 0);
-      // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1], 0,
-      // 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
-      //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
+  for (const auto &model : state.models) {
+    for (size_t i = 0; i < model.triangles.size(); i++) {
+      std::array<glmt::vec3s, 3> transformed;
+      std::array<glmt::vec2s, 3> transformed2;
 
-      glm::vec4 ss =
-          glm::vec4(glm::project(glm::vec3(state.model.triangles[i][t]),
-                                 state.view * state.model.matrix, state.proj,
-                                 glm::vec4(0, 0, WIDTH, HEIGHT)),
-                    1);
+      for (size_t t = 0; t < transformed.size(); t++) {
+        // manually apply stuff, need to unpack if clipping to be implemented
+        // although clipping can be done in w space if using glm::project
+        // glmt::vec3l ls = std::get<0>(t)[i];
+        // glmt::vec3w ws = state.model.matrix * ls;
+        // glmt::vec3c cs = state.proj * state.view * ws;
+        // clipping done here
+        // glm::vec4 ss = cs; // viewport transformation below
+        // ss /= ss.w;
+        // ss *= glm::vec4(0.5, 0.5, 1, 1);
+        // ss += glm::vec4(0.5, 0.5, 0, 0);
+        // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1],
+        // 0, 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
+        //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
 
-      transformed[t] = ss;
-      transformed2[t] = glm::vec2(ss);
-    }
+        glm::vec4 ss =
+            glm::vec4(glm::project(glm::vec3(model.triangles[i][t]),
+                                   state.view * model.matrix, state.proj,
+                                   glm::vec4(0, 0, WIDTH, HEIGHT)),
+                      1);
 
-    switch (state.model.mode) {
-    case Model::RenderMode::WIREFRAME:
-      linetriangle(window,
-                   std::make_tuple(transformed2, state.model.colours[i]));
-      break;
-    case Model::RenderMode::FILL:
-      filledtriangle(window,
-                     std::make_tuple(transformed, state.model.colours[i]));
-      break;
+        transformed[t] = ss;
+        transformed2[t] = glm::vec2(ss);
+      }
+
+      switch (model.mode) {
+      case Model::RenderMode::WIREFRAME:
+        linetriangle(window, std::make_tuple(transformed2, model.colours[i]));
+        break;
+      case Model::RenderMode::FILL:
+        filledtriangle(window, std::make_tuple(transformed, model.colours[i]));
+        break;
+      }
     }
   }
 
@@ -277,17 +292,20 @@ void update() {
 
   state.camera.yaw = (s2 * s3 * s7);
   state.camera.pitch = (s3 * s5 * s11);
-  state.camera.dist = 7 - 3 * (s2 * s3 * s5 * s7 * s11);
+  state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
 
-  glm::mat4 fun = glm::rotate(
-      delta,
-      glm::euclidean(glm::vec2(glm::sin(delta / 3), glm::cos(delta / 5))));
-  state.model.matrix = fun * glm::translate(state.model.position) *
-                       glm::scale(state.model.scale) *
-                       glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
-                       glm::translate(-state.model.centre);
+  for (size_t i = 0; i < state.models.size(); ++i) {
+    glm::mat4 fun = glm::rotate(
+        delta, glm::euclidean(glm::vec2(glm::sin((delta + i) / 3),
+                                        glm::cos((delta + i) / 5))));
+    state.models[i].matrix =
+        glm::translate(state.models[i].position) *
+        (i == 0 ? fun : glm::mat4(1)) * glm::scale(state.models[i].scale) *
+        glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
+        glm::translate(-state.models[i].centre);
+  }
 }
 
 void handleEvent(SDL_Event event) {
