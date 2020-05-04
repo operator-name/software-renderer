@@ -16,6 +16,7 @@ window::window(int w, int h, bool fullscreen, std::string title) {
   width = w;
   height = h;
   pixelBuffer = new uint32_t[width * height];
+  depthBuffer = new float[width * height];
   clearPixels();
 
   uint32_t flags = SDL_WINDOW_OPENGL;
@@ -85,6 +86,13 @@ void window::setPixelColour(glmt::vec2p pos, uint32_t colour) {
     pixelBuffer[(pos.y * width) + pos.x] = colour;
 }
 
+void window::setPixelColour(glmt::vec2p pos, float invz, const uint32_t colour) {
+  if (0.0000f >= depthBuffer[(pos.y * width) + pos.x] - invz) { // threshold
+    depthBuffer[(pos.y * width) + pos.x] = invz;
+    setPixelColour(pos, colour);
+  }
+}
+
 glmt::rgba8888 window::getPixelColour(glmt::vec2p pos) {
   if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
     // std::cout << x << "," << y << " not on visible screen area" << std::endl;
@@ -95,6 +103,12 @@ glmt::rgba8888 window::getPixelColour(glmt::vec2p pos) {
 
 void window::clearPixels() {
   memset(pixelBuffer, 0, width * height * sizeof(uint32_t));
+  for (size_t i = 0; i < width * height; i++) {
+    // captures 1/z, instead of z as suggested so std::numeric_limits<float>::infinity() is not used
+    // nothing on screen is the same as every point being infinity far away
+    // 1/inf = 0, 
+    depthBuffer[i] = 0;
+  }
 }
 
 void window::printMessageAndQuit(const char *message, const char *error) {

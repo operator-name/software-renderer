@@ -125,6 +125,7 @@ namespace glmt {
       LOCAL_SPACE,
       WORLD_SPACE,
       CAMERA_SPACE,
+      SCREEN_SPACE,
     };
 
     template <COORDINATE_SYSTEM_3D CS> class vec3 : public glm::vec4 {
@@ -139,6 +140,8 @@ namespace glmt {
         vec3w; // vec3 in world space
     typedef vec3<COORDINATE_SYSTEM_3D::CAMERA_SPACE>
         vec3c; // vec3 in camera space
+    typedef vec3<COORDINATE_SYSTEM_3D::SCREEN_SPACE>
+        vec3s; // vec3 in screen space
 
   } // namespace d3
 

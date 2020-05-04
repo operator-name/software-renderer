@@ -13,6 +13,7 @@ private:
   SDL_Renderer *renderer;
   SDL_Texture *texture;
   uint32_t *pixelBuffer;
+  float *depthBuffer;
 
 public:
   unsigned int height;
@@ -26,6 +27,7 @@ public:
   void renderFrame();
   bool pollForInputEvents(SDL_Event *event);
   void setPixelColour(glmt::vec2p pos, const uint32_t colour);
+  void setPixelColour(glmt::vec2p pos, float invz, const uint32_t colour);
   glmt::rgba8888 getPixelColour(glmt::vec2p pos);
   void clearPixels();
 

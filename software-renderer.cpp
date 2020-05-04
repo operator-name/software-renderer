@@ -156,9 +156,10 @@ void setup() {
 void draw() {
   window.clearPixels();
   for (auto const &t : state.model.triangles) {
-    std::array<glmt::vec2s, 3> ft;
     auto c = std::get<1>(t);
 
+    std::array<glmt::vec3s, 3> zt;
+    std::array<glmt::vec2s, 3> ft;
     for (size_t i = 0; i < ft.size(); i++) {
 
       glmt::vec3l ls = std::get<0>(t)[i];
@@ -174,15 +175,17 @@ void draw() {
       // 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
       //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
 
-      glm::vec3 ss =
-          glm::project(glm::vec3(ls), state.view * state.model.matrix,
-                       state.proj, glm::vec4(0, 0, WIDTH, HEIGHT));
+      glmt::vec3s ss =
+          glm::vec4(glm::project(glm::vec3(ls), state.view * state.model.matrix,
+                                 state.proj, glm::vec4(0, 0, WIDTH, HEIGHT)),
+                    1);
 
       ft[i] = glm::vec2(ss);
+      zt[i] = ss;
     }
 
-    // filledtriangle(window, std::make_tuple(ft, c));
-    linetriangle(window, std::make_tuple(ft, c));
+    // linetriangle(window, std::make_tuple(ft, c));
+    filledtriangle(window, std::make_tuple(zt, c));
   }
 
   linetriangle(window, state.unfilled_triangle);

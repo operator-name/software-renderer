@@ -363,3 +363,34 @@ sdw::window texture_window(std::string filename, std::string title = "") {
 
   return texture_window; // caller needs to call .close()
 }
+
+template <glmt::COLOUR_SPACE CS>
+void filledtriangle(
+    sdw::window window,
+    std::tuple<std::array<glmt::vec3s, 3>, glmt::colour<CS>> triangle) {
+
+  std::array<glmt::vec2s, 3> s_tri{glm::vec2(std::get<0>(triangle)[0]),
+                                   glm::vec2(std::get<0>(triangle)[1]),
+                                   glm::vec2(std::get<0>(triangle)[2])};
+  glmt::bound2s bounds(s_tri.begin(), s_tri.end());
+
+  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
+  bounds.max =
+      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+
+  for (int y = bounds.min.y; y <= bounds.max.y; y++) {
+    for (int x = bounds.min.x; x <= bounds.max.x; x++) {
+      glm::vec3 bc = barycentric(glmt::vec2s(x, y), s_tri);
+      if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) {
+        // outside of triangle
+        continue;
+      }
+
+      float zinv = bc[0] / std::get<0>(triangle)[0].z +
+                   bc[1] / std::get<0>(triangle)[1].z +
+                   bc[2] / std::get<0>(triangle)[2].z;
+      window.setPixelColour(glmt::vec2p(x, y), zinv,
+                            std::get<1>(triangle).argb8888());
+    }
+  }
+}
