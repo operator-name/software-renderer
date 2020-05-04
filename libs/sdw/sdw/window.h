@@ -6,32 +6,32 @@
 
 namespace sdw {
 
-class window {
+  class window {
 
-private:
-  SDL_Window *_window;
-  SDL_Renderer *renderer;
-  SDL_Texture *texture;
-  uint32_t *pixelBuffer;
-  float *depthBuffer;
+  private:
+    SDL_Window *_window;
+    SDL_Renderer *renderer;
+    SDL_Texture *texture;
+    uint32_t *pixelBuffer;
+    float *depthBuffer;
 
-public:
-  unsigned int height;
-  unsigned int width;
+  public:
+    unsigned int height;
+    unsigned int width;
 
-  // Constructor method
-  window();
-  window(int w, int h, bool fullscreen, std::string title = "COMS30115");
-  void close();
-  void destroy();
-  void renderFrame();
-  bool pollForInputEvents(SDL_Event *event);
-  void setPixelColour(glmt::vec2p pos, const uint32_t colour);
-  void setPixelColour(glmt::vec2p pos, float invz, const uint32_t colour);
-  glmt::rgba8888 getPixelColour(glmt::vec2p pos);
-  void clearPixels();
+    // Constructor method
+    window();
+    window(int w, int h, bool fullscreen, std::string title = "COMS30115");
+    void close();
+    void destroy();
+    void renderFrame();
+    bool pollForInputEvents(SDL_Event *event);
+    void setPixelColour(glmt::vec2p pos, const uint32_t colour);
+    void setPixelColour(glmt::vec2p pos, float invz, const uint32_t colour);
+    glmt::rgba8888 getPixelColour(glmt::vec2p pos);
+    void clearPixels();
 
-  void printMessageAndQuit(const char *message, const char *error);
-};
+    void printMessageAndQuit(const char *message, const char *error);
+  };
 
 } // namespace sdw

@@ -73,6 +73,9 @@ mp4: PPM/frame00000.ppm
 
 dev:
 	clang-format --style="{NamespaceIndentation: All}" -i *.*pp
+	clang-format --style="{NamespaceIndentation: All}" -i libs/sdw/sdw/*.h
+	clang-format --style="{NamespaceIndentation: All}" -i libs/sdw/*.*pp
+	clang-format --style="{NamespaceIndentation: All}" -i libs/glmt/*.*pp
 	clear
 	make speedy
 	make run

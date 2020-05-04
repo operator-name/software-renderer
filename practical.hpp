@@ -381,7 +381,7 @@ void filledtriangle(
   for (int y = bounds.min.y; y <= bounds.max.y; y++) {
     for (int x = bounds.min.x; x <= bounds.max.x; x++) {
       glm::vec3 bc = barycentric(glmt::vec2s(x, y), s_tri);
-      if (bc[0] < 0 || bc[1] < 0 || bc[2] < 0) {
+      if (bc[0] <= 0 || bc[1] <= 0 || bc[2] <= 0) {
         // outside of triangle
         continue;
       }

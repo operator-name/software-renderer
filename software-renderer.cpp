@@ -5,6 +5,7 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
 #include <glm/gtx/transform.hpp>
 
@@ -40,6 +41,7 @@ struct Model {
 
   glm::mat4 matrix; // model matrix, TODO: proper types
   glm::vec3 centre;
+  glm::vec3 scale = glm::vec3(1, 1, 1);
 };
 
 struct Camera {
@@ -48,8 +50,8 @@ struct Camera {
   float dist = 10.2f;
   float pitch = 0;
   float yaw = 0.001;
-  float rot_velocity = 0.02f;
-  float velocity = 0.03f;
+  float rot_velocity = 0.05f;
+  float velocity = 0.05f;
 
   // regular lookat, defaults positive y as up
   glm::mat4 lookat(glm::vec3 from, glm::vec3 to,
@@ -154,12 +156,18 @@ int main(int argc, char *argv[]) {
 }
 
 void setup() {
-  // state.obj = parse_obj("cornell-box.obj");
-  state.obj = parse_obj("HackspaceLogo/logo.obj");
+  state.obj = parse_obj("logo.obj");
 
-  exit(1);
+  std::cout << state.obj.triangles.size() << std::endl;
+  std::cout << state.obj.colours.size() << std::endl;
+  std::cout << state.obj.textures.size() << std::endl;
 
-  state.model.triangles = state.obj.triangles;
+  for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
+    state.model.triangles.push_back(std::make_tuple(
+        state.obj.triangles[i],
+        glmt::rgbf01(glm::linearRand(0.f, 1.f), glm::linearRand(0.f, 1.f),
+                     glm::linearRand(0.f, 1.f))));
+  }
 
   // calculate "centre" of the model to use as origin for tansformations
   // TODO: move to bound3
@@ -172,6 +180,34 @@ void setup() {
     }
   }
   state.model.centre = (min + max) / 2.f;
+  float scale = 9 / glm::compMax(glm::abs(max - min));
+  state.model.scale = glm::vec3(scale, scale, scale);
+
+  // state.obj = parse_obj("cornell-box.obj");
+
+  // if (!state.obj.colours.empty()) {
+  //   for (size_t i = 0; i < state.obj.triangles.size(); ++i) {
+  //     // state.obj.colours[i] =
+  //     //     glmt::rgbf01(glm::linearRand(0.f, 1.f),
+  //     glm::linearRand(0.f, 1.f),
+  //         //                  glm::linearRand(0.f, 1.f));
+  //         state.model.triangles.push_back(
+  //             std::make_tuple(state.obj.triangles[i], state.obj.colours[i]));
+  //   }
+  // }
+  // // calculate "centre" of the model to use as origin for tansformations
+  // // TODO: move to bound3
+  // glm::vec3 max(std::numeric_limits<float>::lowest());
+  // glm::vec3 min(std::numeric_limits<float>::max());
+  // for (auto const &t : state.model.triangles) {
+  //   for (glmt::vec3l point : std::get<0>(t)) {
+  //     max = glm::max(max, glm::vec3(point));
+  //     min = glm::min(min, glm::vec3(point));
+  //   }
+  // }
+  // state.model.centre = (min + max) / 2.f;
+  // float scale = 5 / glm::compMax(glm::abs(max - min));
+  // state.model.scale = glm::vec3(scale, scale, scale);
 
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
@@ -231,21 +267,25 @@ void update() {
 
   float delta = (state.logic / FPS); // s since start
 
-  // state.camera.yaw = glm::sin(delta / 2) * 2;
-  // state.camera.pitch = (-glm::abs(glm::sin(delta / 3)) + 0.5) * 1.5;
-  float spoon = glm::atan(glm::atan(delta - TIME / 3) * glm::log(delta + 0.5));
-  state.camera.dist = 10 - 2 * spoon;
+  float s2 = glm::sin(delta / 2);
+  float s3 = glm::sin(delta / 3);
+  float s5 = glm::sin(delta / 5);
+  float s7 = glm::sin(delta / 7);
+  float s11 = glm::sin(delta / 11);
+
+  state.camera.yaw = (s2 * s3 * s7);
+  state.camera.pitch = (s3 * s5 * s11);
+  state.camera.dist = 7 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
-  state.proj = glm::perspectiveFov(glm::radians(100.f), (float)WIDTH,
-                                   (float)HEIGHT, 0.1f, 100.0f);
 
   glm::mat4 fun = glm::rotate(
       delta,
       glm::euclidean(glm::vec2(glm::sin(delta / 3), glm::cos(delta / 5))));
-  state.model.matrix = fun *
-                       glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
-                       glm::translate(-state.model.centre);
+  state.model.matrix = // fun *
+      glm::scale(state.model.scale) *
+      glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
+      glm::translate(-state.model.centre);
 }
 
 void handleEvent(SDL_Event event) {

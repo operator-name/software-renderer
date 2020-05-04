@@ -48,7 +48,7 @@ namespace glmt {
         rgba.r = (argb >> 16) & 255;
         rgba.g = (argb >> 8) & 255;
         rgba.b = (argb >> 0) & 255;
-        
+
         return rgba;
       }
     };
@@ -430,12 +430,34 @@ namespace glmt {
     class MTL {
     public:
       std::map<std::string, MTL_newmtl> mtls;
+      std::string map_Kd;
       friend std::istream &operator>>(std::istream &input, MTL &mtl) {
         while (!input.eof() && !input.fail()) {
-          MTL_newmtl m;
-          input >> m;
+          input >> detail::ws_until("nm");
+          switch (input.peek()) {
+          case 'm': {
+            input >> detail::ch<'m'>() >> detail::ch<'a'>() >>
+                detail::ch<'p'>() >> detail::ch<'_'>() >> detail::ch<'K'>() >>
+                detail::ch<'d'>() >> detail::ws();
+            input >> mtl.map_Kd;
+            break;
+          }
+          case 'n': {
+            MTL_newmtl m;
+            input >> m;
 
-          mtl.mtls.emplace(m.name, m);
+            mtl.mtls.emplace(m.name, m);
+            break;
+          }
+          default: {
+            input.setstate(std::ios::failbit);
+            std::string kw;
+            input >> kw;
+            std::cout << ".mtl parser does not support statement \"" << kw
+                      << "\"" << std::endl;
+            break;
+          }
+          }
         }
 
         return input;
@@ -461,6 +483,8 @@ namespace glmt {
       std::vector<MTL> mtls;
 
     public:
+      std::string map_Kd;
+
       OBJ_mtllib(){};
       OBJ_mtllib(std::vector<MTL> mtls) : mtls(mtls){};
 
@@ -499,6 +523,9 @@ namespace glmt {
           }
 
           mtllib.mtls.push_back(mtl);
+          if (!mtl.map_Kd.empty()) {
+            mtllib.map_Kd = mtl.map_Kd;
+          }
         }
 
         return input;
@@ -534,10 +561,28 @@ namespace glmt {
       }
     };
 
+    class OBJ_vt {
+    public:
+      glmt::vec2t vt;
+      friend std::istream &operator>>(std::istream &input, OBJ_vt &vt) {
+        float u;
+        float v;
+        input >> detail::ch<'v'>() >> detail::ch<'t'>() >> u >> v;
+        vt.vt = glm::vec2(u, v);
+
+        return input;
+      }
+      friend std::ostream &operator<<(std::ostream &output, const OBJ_vt &vt) {
+        std::cout << "OBJ_vt " << vt.vt;
+        return output;
+      }
+    };
+
     class OBJ_f {
     public:
       std::string usemtl;
       std::vector<size_t> vs;
+      std::vector<size_t> vts;
       OBJ_f(std::string usemtl) : usemtl(usemtl) {}
       friend std::istream &operator>>(std::istream &input, OBJ_f &f) {
         input >> detail::ch<'f'>();
@@ -546,6 +591,13 @@ namespace glmt {
 
           input >> v >> detail::ch<'/'>();
           f.vs.push_back(v);
+
+          if (std::isdigit(input.peek())) {
+            size_t vt;
+
+            input >> vt;
+            f.vts.push_back(vt);
+          }
         }
 
         return input;
@@ -555,7 +607,11 @@ namespace glmt {
         for (const auto &v : f.vs) {
           output << v << ", ";
         }
-        output << "] }";
+        output << "], .vts = [";
+        for (const auto &vt : f.vts) {
+          output << vt << ", ";
+        }
+        output << " ] }";
         return output;
       }
     };
@@ -566,6 +622,7 @@ namespace glmt {
       OBJ_mtllib mtllib;
       std::string usemtl;
       std::vector<OBJ_v> vs;
+      std::vector<OBJ_vt> vts;
       std::vector<OBJ_f> fs;
 
       friend std::istream &operator>>(std::istream &input, OBJ_data &data) {
@@ -596,9 +653,20 @@ namespace glmt {
             break;
           }
           case 'v': {
-            OBJ_v v;
-            input >> v;
-            data.vs.push_back(v);
+            input.get();
+            bool vt = input.peek() == 't';
+            input.unget();
+
+            if (vt) {
+              OBJ_vt vt;
+              input >> vt;
+              data.vts.push_back(vt);
+            } else {
+              OBJ_v v;
+              input >> v;
+              data.vs.push_back(v);
+            }
+
             break;
           }
           case 'f': {
@@ -682,23 +750,59 @@ namespace glmt {
 
   class OBJ {
   public:
-    typedef std::array<vec3l, 3> tri_l;
-    typedef std::tuple<tri_l, rgbf01> triangle;
+    typedef std::array<vec3l, 3> triangle;
+    typedef std::array<vec2t, 3> texture;
     std::vector<triangle> triangles;
+    std::vector<rgbf01> colours;
+
+    PPM texture_map;
+    std::vector<texture> textures;
+
     friend std::istream &operator>>(std::istream &input, OBJ &obj) {
       parser::OBJ_data data;
       input >> data;
 
-      for (auto const &f : data.fs) {
-        // assume all fs are triangles
-        tri_l tl;
-        rgbf01 c = data.mtllib[f.usemtl].Kd.rgb;
+      if (data.mtllib.map_Kd.empty()) {
+        for (auto const &f : data.fs) {
+          // assume all fs are triangles
+          triangle triangle;
+          rgbf01 colour = data.mtllib[f.usemtl].Kd.rgb;
 
-        for (size_t i = 0; i < tl.size(); i++) {
-          tl[i] = data.vs[f.vs[i] - 1].v; // fs are 1 indexed
+          for (size_t i = 0; i < triangle.size(); i++) {
+            triangle[i] = data.vs[f.vs[i] - 1].v; // fs are 1 indexed
+          }
+
+          obj.triangles.push_back(triangle);
+          obj.colours.push_back(colour);
+        }
+      } else {
+        std::ifstream file(data.mtllib.map_Kd.c_str());
+        file >> obj.texture_map;
+
+        // TODO: should this throw?
+        if (file.fail()) {
+          std::cerr << "Parsing PPM \"" << data.mtllib.map_Kd << "\" failed"
+                    << std::endl;
+        }
+        if (file.peek(), !file.eof()) {
+          std::clog << "PPM \"" << data.mtllib.map_Kd
+                    << "\" has extra data past specification" << std::endl;
         }
 
-        obj.triangles.push_back(std::make_tuple(tl, c));
+        for (auto const &f : data.fs) {
+          // assume all fs are triangles, and have vts
+          triangle triangle;
+          texture texture;
+
+          for (size_t i = 0; i < triangle.size(); i++) {
+            // fs are 1 indexed
+            triangle[i] = data.vs[f.vs[i] - 1].v;
+            texture[i] = data.vts[f.vts[i] - 1].vt;
+          }
+
+          obj.triangles.push_back(triangle);
+          obj.textures.push_back(texture);
+        }
       }
 
       return input;
