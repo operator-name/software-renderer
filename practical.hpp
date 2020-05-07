@@ -400,33 +400,59 @@ void filledtriangle(
   }
 }
 
-// struct Intersection {
-//   bool intersect = false;
-//   float distance = std::numeric_limits<float>::infinity();
-//   glm::vec4 position;
-// };
+struct Intersection {
+  glm::vec4 position;
+  float distance;
+  int triangleIndex;
+};
 
-// Intersection intersect(glm::vec4 start, glm::vec4 dir,
-//                        std::array<glm::vec4, 3> triangle) {
+bool intersect(glm::vec4 start, glm::vec4 dir,
+               std::array<glm::vec4, 3> triangle, Intersection &intersection) {
 
-//   glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
-//   glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
-//   glm::vec3 SPVector = glm::vec3(start - triangle[0]);
-//   glm::mat3 DEMatrix(-glm::vec3(dir), e1, e2);
-//   glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+  glm::vec4 v0 = triangle[0];
+  glm::vec4 v1 = triangle[1];
+  glm::vec4 v2 = triangle[2];
 
-//   float t = possibleSolution[0];
-//   float u = possibleSolution[1];
-//   float v = possibleSolution[2];
+  glm::vec3 e1 = glm::vec3(v1 - v0);
+  glm::vec3 e2 = glm::vec3(v2 - v0);
+  glm::vec3 b = glm::vec3(start - v0);
+  glm::mat3 A(-glm::vec3(dir), e1, e2);
+  glm::vec3 x = glm::inverse(A) * b;
 
-//   Intersection i;
-//   i.intersect = 0.0 <= t;                // not behind
-//   i.intersect = i.intersect && 0.0 <= u; // && u <= 1.0;
-//   i.intersect = i.intersect && 0.0 <= v; // && v <= 1.0;
-//   i.intersect = i.intersect && u + v <= 1.0;
+  if (0 <= x[0] &&
+      // in front of camera
+      0 <= x[1] &&
+      // along e1 /*x[1] <= 1 &&*/
+      0 <= x[2] &&
+      // along e2 /*x[2] <= 1 &&*/
+      (x[1] + x[2] <= 1)
+      // inside "e3"
+  ) {
+    intersection.position = start + x[0] * dir;
+    intersection.distance = x[0];
+    return true;
+  }
 
-//   i.distance = t;
-//   i.position = start + t * dir;
+  return false;
+}
 
-//   return i;
-// }
+bool ClosestIntersection(glm::vec4 start, glm::vec4 dir,
+                         const std::vector<std::array<glm::vec4, 3>> &triangles,
+                         Intersection &closestIntersection) {
+  closestIntersection.distance = std::numeric_limits<float>::infinity();
+
+  for (size_t i = 0; i < triangles.size(); i++) {
+    Intersection temp;
+    bool triangleIntersects = intersect(start, dir, triangles[i], temp);
+
+    if (triangleIntersects) {
+      if (temp.distance < closestIntersection.distance) {
+        closestIntersection.distance = temp.distance;
+        closestIntersection.position = temp.position;
+        closestIntersection.triangleIndex = i;
+      }
+    }
+  }
+
+  return closestIntersection.distance < std::numeric_limits<float>::infinity();
+}

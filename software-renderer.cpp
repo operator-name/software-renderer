@@ -96,6 +96,8 @@ struct Camera {
                     glm::rotate(yaw, glm::vec3(0, 1, 0));
     return glm::translate(glm::vec3(pos)) * rot;
   }
+
+  float fov = glm::radians(90.f);
 };
 
 struct State {
@@ -103,12 +105,11 @@ struct State {
   std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> filled_triangle;
 
   std::vector<Model> models;
+  std::vector<Model::RenderMode> orig;
 
   Camera camera;
-  glm::mat4 view = glm::lookAt(glm::vec3(0.1, 0.01, -10), glm::vec3(0, 0, 0),
-                               glm::vec3(0, 1, 0));
-  glm::mat4 proj = glm::perspectiveFov(glm::radians(90.f), (float)WIDTH,
-                                       (float)HEIGHT, 0.1f, 100.0f);
+  glm::mat4 view;
+  glm::mat4 proj;
 
   struct SDL_detail {
     bool mouse_down = false;
@@ -188,39 +189,25 @@ void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
-  // {
-  //   glmt::OBJ obj = parse_obj("logo.obj");
-  //   Model model;
+  {
+    glmt::OBJ obj = parse_obj("logo.obj");
+    Model model;
 
-  //   model.triangles = obj.triangles;
-  //   // whilst we can't render textures, just render some random colour
-  //   for (size_t i = 0; i < obj.triangles.size(); i++) {
-  //     model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
-  //                                          glm::linearRand(0.f, 1.f),
-  //                                          glm::linearRand(0.f, 1.f)));
-  //   }
-  //   model = align(model);
+    model.triangles = obj.triangles;
+    // whilst we can't render textures, just render some random colour
+    for (size_t i = 0; i < obj.triangles.size(); i++) {
+      model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
+                                           glm::linearRand(0.f, 1.f),
+                                           glm::linearRand(0.f, 1.f)));
+    }
+    model = align(model);
 
-  //   model.scale *= 7;
-  //   model.mode = Model::RenderMode::WIREFRAME;
-  //   model.position = glm::vec3(-4, 5, 0);
+    model.scale *= 7;
+    model.mode = Model::RenderMode::WIREFRAME;
+    model.position = glm::vec3(-4, 5, 0);
 
-  //   state.models.push_back(model);
-  // }
-  // {
-  //   glmt::OBJ obj = parse_obj("cornell-box.obj");
-  //   Model model;
-
-  //   model.triangles = obj.triangles;
-  //   model.colours = obj.colours;
-  //   model = align(model);
-
-  //   model.scale *= 5;
-  //   model.mode = Model::RenderMode::FILL;
-  //   model.position = glm::vec3(4, 5, 0);
-
-  //   state.models.push_back(model);
-  // }
+    state.models.push_back(model);
+  }
   {
     glmt::OBJ obj = parse_obj("cornell-box.obj");
     Model model;
@@ -230,12 +217,29 @@ void setup() {
     model = align(model);
 
     model.scale *= 5;
-    model.mode = Model::RenderMode::RAYTRACE;
-    // model.position = glm::vec3(0, -5, 0);
-    model.position = glm::vec3(0, 0, 8);
+    model.mode = Model::RenderMode::FILL;
+    model.position = glm::vec3(4, 5, 0);
 
     state.models.push_back(model);
-    model.mode = Model::RenderMode::WIREFRAME;
+  }
+  {
+    glmt::OBJ obj = parse_obj("cornell-box.obj");
+    Model model;
+
+    model.triangles = obj.triangles;
+    model.colours = obj.colours;
+    // for (size_t i = 0; i < obj.triangles.size(); i++) {
+    //   model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
+    //                                        glm::linearRand(0.f, 1.f),
+    //                                        glm::linearRand(0.f, 1.f)));
+    // }
+    model = align(model);
+
+    model.scale *= 5;
+    model.mode = Model::RenderMode::RAYTRACE;
+    model.position = glm::vec3(0, -5, 0);
+    // model.position = glm::vec3(0, 0, 8);
+
     state.models.push_back(model);
   }
 
@@ -247,72 +251,24 @@ void setup() {
   }
 }
 
-struct Intersection {
-  glm::vec4 position;
-  float distance;
-  int triangleIndex;
-};
-
-bool SingleIntersection(glm::vec4 start, glm::vec4 dir,
-                        std::array<glm::vec4, 3> triangle,
-                        Intersection &intersection) {
-
-  glm::vec4 v0 = triangle[0];
-  glm::vec4 v1 = triangle[1];
-  glm::vec4 v2 = triangle[2];
-
-  glm::vec3 e1 = glm::vec3(v1 - v0);
-  glm::vec3 e2 = glm::vec3(v2 - v0);
-  glm::vec3 b = glm::vec3(start - v0);
-  glm::mat3 A(-glm::vec3(dir), e1, e2);
-  glm::vec3 x = glm::inverse(A) * b;
-
-  if (0 <= x[1] && 0 <= x[2] && (x[1] + x[2] <= 1) && 0 <= x[0]) {
-    intersection.position = start + x[0] * dir;
-    intersection.distance = x[0];
-    return true;
-  }
-
-  return false;
-}
-
-bool ClosestIntersection(glm::vec4 start, glm::vec4 dir,
-                         const std::vector<std::array<glm::vec4, 3>> &triangles,
-                         Intersection &closestIntersection) {
-  closestIntersection.distance = std::numeric_limits<float>::infinity();
-
-  for (size_t i = 0; i < triangles.size(); i++) {
-    Intersection temp;
-    bool triangleIntersects =
-        SingleIntersection(start, dir, triangles[i], temp);
-
-    if (triangleIntersects) {
-      if (temp.distance < closestIntersection.distance) {
-        closestIntersection.distance = temp.distance;
-        closestIntersection.position = temp.position;
-        closestIntersection.triangleIndex = i;
-      }
-    }
-  }
-
-  return closestIntersection.distance < std::numeric_limits<float>::infinity();
-}
-
 void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
+
+  linetriangle(window, state.unfilled_triangle);
+  filledtriangle(window, state.filled_triangle);
 
   for (const auto &model : state.models) {
     if (model.mode == Model::RenderMode::RAYTRACE) {
       float focalLength =
           (HEIGHT / 2) *
-          glm::tan(glm::radians(90.f / 2.0f)); // match perspective
+          glm::tan(glm::radians(90.f / 2.0f)); // match perspective?
       glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
 
-      for (int x = 0; x < WIDTH; x++) {
-        for (int y = 0; y < HEIGHT; y++) {
-          glm::vec4 ray(((float)x - WIDTH / 2.0), ((float)y - HEIGHT / 2.0),
-                        -focalLength, 0.0);
+      for (unsigned int x = 0; x < window.width; x++) {
+        for (unsigned int y = 0; y < window.height; y++) {
+          glm::vec4 ray(((float)x - window.width / 2.0),
+                        ((float)y - window.height / 2.0), -focalLength, 0.0);
 
           Intersection intersection;
           std::vector<std::array<glm::vec4, 3>> triangles;
@@ -330,11 +286,10 @@ void draw() {
                            return ts;
                          });
 
-          if (ClosestIntersection(cameraPos, ray, triangles, intersection)) {
+          if (ClosestIntersection(cameraPos, glm::normalize(ray), triangles,
+                                  intersection)) {
             glmt::rgbf01 c = model.colours[intersection.triangleIndex];
-            window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
-          } else {
-            glmt::rgbf01 c = 0.1f * glm::vec3(1, 1, 1);
+            // TODO: fix perspective and use zbuffer
             window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
           }
         }
@@ -357,14 +312,14 @@ void draw() {
           // ss *= glm::vec4(0.5, 0.5, 1, 1);
           // ss += glm::vec4(0.5, 0.5, 0, 0);
           // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1],
-          // 0, 0); ss *= glm::vec4(WIDTH, HEIGHT, 1,
+          // 0, 0); ss *= glm::vec4(window.width, window.height, 1,
           //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
 
-          glm::vec4 ss =
-              glm::vec4(glm::project(glm::vec3(model.triangles[i][t]),
-                                     state.view * model.matrix, state.proj,
-                                     glm::vec4(0, 0, WIDTH, HEIGHT)),
-                        1);
+          glm::vec4 ss = glm::vec4(
+              glm::project(glm::vec3(model.triangles[i][t]),
+                           state.view * model.matrix, state.proj,
+                           glm::vec4(0, 0, window.width, window.height)),
+              1);
 
           transformed[t] = ss;
           transformed2[t] = glm::vec2(ss);
@@ -379,9 +334,6 @@ void draw() {
       }
     }
   }
-
-  linetriangle(window, state.unfilled_triangle);
-  filledtriangle(window, state.filled_triangle);
 }
 
 void update() {
@@ -406,6 +358,8 @@ void update() {
   // state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
+  state.proj = glm::perspectiveFov(state.camera.fov, (float)window.width,
+                                   (float)window.height, 0.1f, 100.0f);
 
   for (size_t i = 0; i < state.models.size(); ++i) {
     glm::mat4 fun = glm::rotate(
@@ -420,8 +374,7 @@ void update() {
                    glm::vec4(state.models[i].position, 1);
 
     state.models[i].matrix =
-        glm::translate(glm::vec3(tp)) *
-        // (i == 0 ? fun : glm::mat4(1)) *
+        glm::translate(glm::vec3(tp)) * (i == 0 ? fun : glm::mat4(1)) *
         glm::scale(state.models[i].scale) *
         glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
         glm::translate(-state.models[i].centre);
@@ -442,23 +395,26 @@ void handleEvent(SDL_Event event) {
       break;
     case SDLK_UP:
       state.camera.dist -= state.camera.velocity;
-      // std::cout << "UP" << std::endl;
+      std::cout << "camera.dist: " << state.camera.dist << std::endl;
       break;
     case SDLK_DOWN:
       state.camera.dist += state.camera.velocity;
-      // std::cout << "DOWN" << std::endl;
+      std::cout << "camera.dist: " << state.camera.dist << std::endl;
       break;
     case SDLK_PAGEUP:
       state.camera.pitch += state.camera.rot_velocity;
+      std::cout << "camera.pitch: " << state.camera.pitch << std::endl;
       break;
     case SDLK_PAGEDOWN:
       state.camera.pitch -= state.camera.rot_velocity;
-      break;
-    case SDLK_c:
-      window.clearPixels();
+      std::cout << "camera.pitch: " << state.camera.pitch << std::endl;
       break;
     case SDLK_d:
-      std::cout << "[DEBUG] state.frame: " << state.frame << std::endl;
+      std::cout << "state.frame: " << state.frame << std::endl;
+      std::cout << "state.logic: " << state.logic << std::endl;
+      std::cout << "camera.yaw: " << state.camera.yaw << std::endl;
+      std::cout << "camera.dist: " << state.camera.dist << std::endl;
+      std::cout << "camera.pitch: " << state.camera.pitch << std::endl;
       break;
     case SDLK_p:
       state.update = !state.update;
@@ -498,13 +454,36 @@ void handleEvent(SDL_Event event) {
       break;
     }
 
-    case SDLK_u:
+    case SDLK_t:
       state.unfilled_triangle = randomtriangleinside(window);
-      break;
-    case SDLK_f:
       state.filled_triangle = randomtriangleinside(window);
       break;
-      // case SDLK_x:
+    case SDLK_w:
+      if (state.orig.empty()) {
+        std::cout << "wireframe" << std::endl;
+        state.orig.reserve(state.models.size());
+        for (size_t i = 0; i < state.models.size(); i++) {
+          state.orig[i] = state.models[i].mode;
+          state.models[i].mode = Model::RenderMode::WIREFRAME;
+        }
+      }
+      break;
+    case SDLK_f:
+      if (state.orig.empty()) {
+        std::cout << "fill" << std::endl;
+        state.orig.reserve(state.models.size());
+        for (size_t i = 0; i < state.models.size(); i++) {
+          state.orig[i] = state.models[i].mode;
+          state.models[i].mode = Model::RenderMode::FILL;
+        }
+      }
+      break;
+    case SDLK_o:
+      std::cout << "orig" << std::endl;
+      for (size_t i = 0; i < state.models.size(); i++) {
+        state.models[i].mode = state.orig[i];
+      }
+      state.orig.clear();
     }
     break;
   case SDL_MOUSEBUTTONDOWN:
