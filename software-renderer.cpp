@@ -188,25 +188,39 @@ void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
   std::srand(0);
-  {
-    glmt::OBJ obj = parse_obj("logo.obj");
-    Model model;
+  // {
+  //   glmt::OBJ obj = parse_obj("logo.obj");
+  //   Model model;
 
-    model.triangles = obj.triangles;
-    // whilst we can't render textures, just render some random colour
-    for (size_t i = 0; i < obj.triangles.size(); i++) {
-      model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
-                                           glm::linearRand(0.f, 1.f),
-                                           glm::linearRand(0.f, 1.f)));
-    }
-    model = align(model);
+  //   model.triangles = obj.triangles;
+  //   // whilst we can't render textures, just render some random colour
+  //   for (size_t i = 0; i < obj.triangles.size(); i++) {
+  //     model.colours.push_back(glmt::rgbf01(glm::linearRand(0.f, 1.f),
+  //                                          glm::linearRand(0.f, 1.f),
+  //                                          glm::linearRand(0.f, 1.f)));
+  //   }
+  //   model = align(model);
 
-    model.scale *= 7;
-    model.mode = Model::RenderMode::WIREFRAME;
-    model.position = glm::vec3(-4, 5, 0);
+  //   model.scale *= 7;
+  //   model.mode = Model::RenderMode::WIREFRAME;
+  //   model.position = glm::vec3(-4, 5, 0);
 
-    state.models.push_back(model);
-  }
+  //   state.models.push_back(model);
+  // }
+  // {
+  //   glmt::OBJ obj = parse_obj("cornell-box.obj");
+  //   Model model;
+
+  //   model.triangles = obj.triangles;
+  //   model.colours = obj.colours;
+  //   model = align(model);
+
+  //   model.scale *= 5;
+  //   model.mode = Model::RenderMode::FILL;
+  //   model.position = glm::vec3(4, 5, 0);
+
+  //   state.models.push_back(model);
+  // }
   {
     glmt::OBJ obj = parse_obj("cornell-box.obj");
     Model model;
@@ -216,24 +230,12 @@ void setup() {
     model = align(model);
 
     model.scale *= 5;
-    model.mode = Model::RenderMode::FILL;
-    model.position = glm::vec3(4, 5, 0);
-
-    state.models.push_back(model);
-  }
-  {
-    glmt::OBJ obj = parse_obj("cornell-box.obj");
-    Model model;
-
-    model.triangles = obj.triangles;
-    model.colours = obj.colours;
-    model = align(model);
-
-    model.scale *= 5;
-    model.mode = Model::RenderMode::FILL;
+    model.mode = Model::RenderMode::RAYTRACE;
     // model.position = glm::vec3(0, -5, 0);
-    model.position = glm::vec3(0, 0, 7);
+    model.position = glm::vec3(0, 0, 8);
 
+    state.models.push_back(model);
+    model.mode = Model::RenderMode::WIREFRAME;
     state.models.push_back(model);
   }
 
@@ -245,46 +247,105 @@ void setup() {
   }
 }
 
+struct Intersection {
+  glm::vec4 position;
+  float distance;
+  int triangleIndex;
+};
+
+bool SingleIntersection(glm::vec4 start, glm::vec4 dir,
+                        std::array<glm::vec4, 3> triangle,
+                        Intersection &intersection) {
+
+  glm::vec4 v0 = triangle[0];
+  glm::vec4 v1 = triangle[1];
+  glm::vec4 v2 = triangle[2];
+
+  glm::vec3 e1 = glm::vec3(v1 - v0);
+  glm::vec3 e2 = glm::vec3(v2 - v0);
+  glm::vec3 b = glm::vec3(start - v0);
+  glm::mat3 A(-glm::vec3(dir), e1, e2);
+  glm::vec3 x = glm::inverse(A) * b;
+
+  if (0 <= x[1] && 0 <= x[2] && (x[1] + x[2] <= 1) && 0 <= x[0]) {
+    intersection.position = start + x[0] * dir;
+    intersection.distance = x[0];
+    return true;
+  }
+
+  return false;
+}
+
+bool ClosestIntersection(glm::vec4 start, glm::vec4 dir,
+                         const std::vector<std::array<glm::vec4, 3>> &triangles,
+                         Intersection &closestIntersection) {
+  closestIntersection.distance = std::numeric_limits<float>::infinity();
+
+  for (size_t i = 0; i < triangles.size(); i++) {
+    Intersection temp;
+    bool triangleIntersects =
+        SingleIntersection(start, dir, triangles[i], temp);
+
+    if (triangleIntersects) {
+      if (temp.distance < closestIntersection.distance) {
+        closestIntersection.distance = temp.distance;
+        closestIntersection.position = temp.position;
+        closestIntersection.triangleIndex = i;
+      }
+    }
+  }
+
+  return closestIntersection.distance < std::numeric_limits<float>::infinity();
+}
+
 void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
 
   for (const auto &model : state.models) {
     if (model.mode == Model::RenderMode::RAYTRACE) {
-      float focal_length = 1 / glm::tan(90.0 / 2.0); // match glm::perspective
-      glm::vec4 start(0, 0, -state.camera.dist, 1);
+      // float focalLength = WIDTH / 2;
+      float focalLength = WIDTH / glm::tan(90 / 2.0);
+      glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
 
-      for (unsigned int y = 0; y < HEIGHT; y++) {
-        for (unsigned int x = 0; x < WIDTH; x++) {
+      cameraPos = state.view * cameraPos;
+
+      for (int x = 0; x < WIDTH; x++) {
+        for (int y = 0; y < HEIGHT; y++) {
           glm::vec4 ray(((float)x - WIDTH / 2.0), ((float)y - HEIGHT / 2.0),
-                        focal_length, 0.0);
-          ray = ray; // does this need inverse projection?
+                        focalLength, 0.0);
+          ray = glm::inverse(state.view) * ray;
+          // pvec4(ray);
+          // return;
 
-          Intersection closest;
-          size_t ix = 0;
+          Intersection intersection;
+          std::vector<std::array<glm::vec4, 3>> triangles;
 
-          for (size_t i = 0; i < model.triangles.size(); i++) {
-            std::array<glm::vec4, 3> cs;
-            for (size_t j = 0; j < cs.size(); j++) {
-              cs[j] = model.triangles[i][j];
-            }
+          std::transform(model.triangles.begin(), model.triangles.end(),
+                         std::back_inserter(triangles),
+                         [=](std::array<glmt::vec3l, 3> triangle)
+                             -> std::array<glm::vec4, 3> {
+                           std::array<glm::vec4, 3> ts;
 
-            Intersection inter = intersect(start, ray, cs);
-            if (inter.intersect) {
-              if (inter.distance < closest.distance) {
-                closest = inter;
-                ix = i;
-              }
-            }
-          }
+                           for (size_t i = 0; i < ts.size(); ++i) {
+                             ts[i] = state.view * model.matrix * triangle[i];
+                           }
 
-          if (closest.intersect) {
-            glmt::rgbf01 c = model.colours[ix];
+                           return ts;
+                         });
+
+          if (ClosestIntersection(cameraPos, ray, triangles, intersection)) {
+            glmt::rgbf01 c = model.colours[intersection.triangleIndex];
+            window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
+          } else {
+            glmt::rgbf01 c = 0.1f * glm::vec3(1, 1, 1);
             window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
           }
         }
       }
+
     } else {
+      continue;
       for (size_t i = 0; i < model.triangles.size(); i++) {
         std::array<glmt::vec3s, 3> transformed;
         std::array<glmt::vec2s, 3> transformed2;
@@ -364,7 +425,8 @@ void update() {
                    glm::vec4(state.models[i].position, 1);
 
     state.models[i].matrix =
-        glm::translate(glm::vec3(tp)) * (i == 0 ? fun : glm::mat4(1)) *
+        glm::translate(glm::vec3(tp)) *
+        // (i == 0 ? fun : glm::mat4(1)) *
         glm::scale(state.models[i].scale) *
         glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
         glm::translate(-state.models[i].centre);
@@ -377,11 +439,11 @@ void handleEvent(SDL_Event event) {
     switch (event.key.keysym.sym) {
     case SDLK_LEFT:
       state.camera.yaw += state.camera.rot_velocity;
-      // std::cout << "LEFT" << std::endl;
+      std::cout << "camera.yaw: " << state.camera.yaw << std::endl;
       break;
     case SDLK_RIGHT:
       state.camera.yaw -= state.camera.rot_velocity;
-      // std::cout << "RIGHT" << std::endl;
+      std::cout << "camera.yaw: " << state.camera.yaw << std::endl;
       break;
     case SDLK_UP:
       state.camera.dist -= state.camera.velocity;

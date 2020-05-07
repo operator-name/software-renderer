@@ -29,10 +29,11 @@ namespace sdw {
     if (_window == 0)
       printMessageAndQuit("Could not set video mode: ", SDL_GetError());
 
-    flags =
-        SDL_RENDERER_ACCELERATED |
-        SDL_RENDERER_PRESENTVSYNC; // vsync mouse lag:
-                                   // https://stackoverflow.com/questions/25173495/c-sdl2-get-mouse-coordinates-without-delay
+    flags = SDL_RENDERER_ACCELERATED;
+    // vsync mouse lag:
+    // https://stackoverflow.com/questions/25173495/c-sdl2-get-mouse-coordinates-without-delay
+    // flags |= SDL_RENDERER_PRESENTVSYNC;
+
     renderer = SDL_CreateRenderer(_window, -1, flags);
     if (renderer == 0)
       printMessageAndQuit("Could not create renderer: ", SDL_GetError());

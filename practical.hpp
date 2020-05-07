@@ -400,39 +400,33 @@ void filledtriangle(
   }
 }
 
-struct Intersection {
-  bool intersect = false;
-  float distance = std::numeric_limits<float>::infinity();
-  glm::vec4 position;
-};
+// struct Intersection {
+//   bool intersect = false;
+//   float distance = std::numeric_limits<float>::infinity();
+//   glm::vec4 position;
+// };
 
-Intersection intersect(glm::vec4 start, glm::vec4 dir,
-                       std::array<glm::vec4, 3> triangle) {
-  // std::cout << "start: " << start << std::endl;
-  // std::cout << "dir: " << dir << std::endl;
-  // std::cout << "triangle: " << std::endl;
-  // for (glm::vec4 p: triangle) {
-  //   std::cout << p << std::endl;
-  // }
+// Intersection intersect(glm::vec4 start, glm::vec4 dir,
+//                        std::array<glm::vec4, 3> triangle) {
 
-  glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
-  glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
-  glm::vec3 SPVector = glm::vec3(start - triangle[0]);
-  glm::mat3 DEMatrix(-glm::vec3(dir), e1, e2);
-  glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+//   glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
+//   glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
+//   glm::vec3 SPVector = glm::vec3(start - triangle[0]);
+//   glm::mat3 DEMatrix(-glm::vec3(dir), e1, e2);
+//   glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
 
-  float t = possibleSolution[0];
-  float u = possibleSolution[1];
-  float v = possibleSolution[2];
+//   float t = possibleSolution[0];
+//   float u = possibleSolution[1];
+//   float v = possibleSolution[2];
 
-  Intersection i;
-  // i.intersection = 0 <= x.t; // not behind
-  i.intersect = i.intersect && 0.0 <= u && u <= 1.0;
-  i.intersect = i.intersect && 0.0 <= v && v <= 1.0;
-  i.intersect = i.intersect && u + v <= 1.0;
+//   Intersection i;
+//   i.intersect = 0.0 <= t;                // not behind
+//   i.intersect = i.intersect && 0.0 <= u; // && u <= 1.0;
+//   i.intersect = i.intersect && 0.0 <= v; // && v <= 1.0;
+//   i.intersect = i.intersect && u + v <= 1.0;
 
-  i.distance = t;
-  i.position = start + t * dir;
+//   i.distance = t;
+//   i.position = start + t * dir;
 
-  return i;
-}
+//   return i;
+// }
