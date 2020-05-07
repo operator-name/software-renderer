@@ -20,7 +20,7 @@
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
-#define N 2
+#define N 1
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
 
@@ -230,15 +230,19 @@ void setup() {
     model = align(model);
 
     model.scale *= 5;
-    model.mode = Model::RenderMode::RAYTRACE;
-    model.position = glm::vec3(0, -5, 0);
+    model.mode = Model::RenderMode::FILL;
+    // model.position = glm::vec3(0, -5, 0);
+    model.position = glm::vec3(0, 0, 7);
 
     state.models.push_back(model);
   }
 
   window = sdw::window(WIDTH, HEIGHT, false);
 
-  std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps" << std::endl;
+  if (WRITE_FILE) {
+    std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps"
+              << std::endl;
+  }
 }
 
 void draw() {
@@ -248,12 +252,36 @@ void draw() {
   for (const auto &model : state.models) {
     if (model.mode == Model::RenderMode::RAYTRACE) {
       float focal_length = 1 / glm::tan(90.0 / 2.0); // match glm::perspective
+      glm::vec4 start(0, 0, -state.camera.dist, 1);
 
       for (unsigned int y = 0; y < HEIGHT; y++) {
         for (unsigned int x = 0; x < WIDTH; x++) {
-          // get ray
-          // get closest intersection of ray to triangle
-          // paint
+          glm::vec4 ray(((float)x - WIDTH / 2.0), ((float)y - HEIGHT / 2.0),
+                        focal_length, 0.0);
+          ray = ray; // does this need inverse projection?
+
+          Intersection closest;
+          size_t ix = 0;
+
+          for (size_t i = 0; i < model.triangles.size(); i++) {
+            std::array<glm::vec4, 3> cs;
+            for (size_t j = 0; j < cs.size(); j++) {
+              cs[j] = model.triangles[i][j];
+            }
+
+            Intersection inter = intersect(start, ray, cs);
+            if (inter.intersect) {
+              if (inter.distance < closest.distance) {
+                closest = inter;
+                ix = i;
+              }
+            }
+          }
+
+          if (closest.intersect) {
+            glmt::rgbf01 c = model.colours[ix];
+            window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
+          }
         }
       }
     } else {
@@ -317,9 +345,9 @@ void update() {
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
 
-  state.camera.yaw = (s2 * s3 * s7);
-  state.camera.pitch = (s3 * s5 * s11);
-  state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
+  // state.camera.yaw = (s2 * s3 * s7);
+  // state.camera.pitch = (s3 * s5 * s11);
+  // state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
 

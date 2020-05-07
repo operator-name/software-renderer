@@ -244,6 +244,8 @@ glm::vec3 barycentric(glmt::vec2<T> p, std::array<glmt::vec2<T>, 3> t) {
   return barycentric(p, triangle);
 }
 
+#include <glm/gtx/component_wise.hpp>
+
 template <glmt::COLOUR_SPACE CS>
 void filledtriangle(
     sdw::window window,
@@ -252,9 +254,10 @@ void filledtriangle(
                        std::get<0>(triangle).end());
   // TODO: glmt::bound2::operator+ // largest bound which fits both
   // TODO: glmt::bound2::operator- // smallest bound which fits both
-  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
-  bounds.max =
-      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+  bounds.min.x = glm::max(glm::floor(bounds.min.x), 0.f);
+  bounds.min.y = glm::max(glm::floor(bounds.min.y), 0.f);
+  bounds.max.x = glm::min(glm::ceil(bounds.max.x), (float)window.width);
+  bounds.max.y = glm::min(glm::ceil(bounds.max.y), (float)window.height);
 
   for (int y = bounds.min.y; y <= bounds.max.y; y++) {
     for (int x = bounds.min.x; x <= bounds.max.x; x++) {
@@ -274,9 +277,10 @@ void texturedtriangle(sdw::window window, std::array<glmt::vec2s, 3> tri,
   glmt::bound2s bounds(tri.begin(), tri.end());
   // TODO: glmt::bound2::operator+ // largest bound which fits both
   // TODO: glmt::bound2::operator- // smallest bound which fits both
-  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
-  bounds.max =
-      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+  bounds.min.x = glm::max(glm::floor(bounds.min.x), 0.f);
+  bounds.min.y = glm::max(glm::floor(bounds.min.y), 0.f);
+  bounds.max.x = glm::min(glm::ceil(bounds.max.x), (float)window.width);
+  bounds.max.y = glm::min(glm::ceil(bounds.max.y), (float)window.height);
 
   for (int y = bounds.min.y; y <= bounds.max.y; y++) {
     for (int x = bounds.min.x; x <= bounds.max.x; x++) {
@@ -374,9 +378,10 @@ void filledtriangle(
                                    glm::vec2(std::get<0>(triangle)[2])};
   glmt::bound2s bounds(s_tri.begin(), s_tri.end());
 
-  bounds.min = glm::max(glm::floor(bounds.min), glm::vec2(0, 0));
-  bounds.max =
-      glm::min(glm::ceil(bounds.max), glm::vec2(window.width, window.height));
+  bounds.min.x = glm::max(glm::floor(bounds.min.x), 0.f);
+  bounds.min.y = glm::max(glm::floor(bounds.min.y), 0.f);
+  bounds.max.x = glm::min(glm::ceil(bounds.max.x), (float)window.width);
+  bounds.max.y = glm::min(glm::ceil(bounds.max.y), (float)window.height);
 
   for (int y = bounds.min.y; y <= bounds.max.y; y++) {
     for (int x = bounds.min.x; x <= bounds.max.x; x++) {
@@ -393,4 +398,41 @@ void filledtriangle(
                             std::get<1>(triangle).argb8888());
     }
   }
+}
+
+struct Intersection {
+  bool intersect = false;
+  float distance = std::numeric_limits<float>::infinity();
+  glm::vec4 position;
+};
+
+Intersection intersect(glm::vec4 start, glm::vec4 dir,
+                       std::array<glm::vec4, 3> triangle) {
+  // std::cout << "start: " << start << std::endl;
+  // std::cout << "dir: " << dir << std::endl;
+  // std::cout << "triangle: " << std::endl;
+  // for (glm::vec4 p: triangle) {
+  //   std::cout << p << std::endl;
+  // }
+
+  glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
+  glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
+  glm::vec3 SPVector = glm::vec3(start - triangle[0]);
+  glm::mat3 DEMatrix(-glm::vec3(dir), e1, e2);
+  glm::vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+
+  float t = possibleSolution[0];
+  float u = possibleSolution[1];
+  float v = possibleSolution[2];
+
+  Intersection i;
+  // i.intersection = 0 <= x.t; // not behind
+  i.intersect = i.intersect && 0.0 <= u && u <= 1.0;
+  i.intersect = i.intersect && 0.0 <= v && v <= 1.0;
+  i.intersect = i.intersect && u + v <= 1.0;
+
+  i.distance = t;
+  i.position = start + t * dir;
+
+  return i;
 }

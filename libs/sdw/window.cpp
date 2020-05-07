@@ -94,10 +94,15 @@ namespace sdw {
 
   void window::setPixelColour(glmt::vec2p pos, float invz,
                               const uint32_t colour) {
-    if (0.0000001f >=
-        depthBuffer[(pos.y * width) + pos.x] - invz) { // threshold
-      depthBuffer[(pos.y * width) + pos.x] = invz;
-      setPixelColour(pos, colour);
+    if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
+      // std::cout << x << "," << y << " not on visible screen area" <<
+      // std::endl;
+    } else {
+      if (0.0000001f >=
+          depthBuffer[(pos.y * width) + pos.x] - invz) { // threshold
+        depthBuffer[(pos.y * width) + pos.x] = invz;
+        setPixelColour(pos, colour);
+      }
     }
   }
 
