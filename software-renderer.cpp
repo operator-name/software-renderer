@@ -304,19 +304,15 @@ void draw() {
 
   for (const auto &model : state.models) {
     if (model.mode == Model::RenderMode::RAYTRACE) {
-      // float focalLength = WIDTH / 2;
-      float focalLength = WIDTH / glm::tan(90 / 2.0);
+      float focalLength =
+          (HEIGHT / 2) *
+          glm::tan(glm::radians(90.f / 2.0f)); // match perspective
       glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
-
-      cameraPos = state.view * cameraPos;
 
       for (int x = 0; x < WIDTH; x++) {
         for (int y = 0; y < HEIGHT; y++) {
           glm::vec4 ray(((float)x - WIDTH / 2.0), ((float)y - HEIGHT / 2.0),
-                        focalLength, 0.0);
-          ray = glm::inverse(state.view) * ray;
-          // pvec4(ray);
-          // return;
+                        -focalLength, 0.0);
 
           Intersection intersection;
           std::vector<std::array<glm::vec4, 3>> triangles;
@@ -345,7 +341,6 @@ void draw() {
       }
 
     } else {
-      continue;
       for (size_t i = 0; i < model.triangles.size(); i++) {
         std::array<glmt::vec3s, 3> transformed;
         std::array<glmt::vec2s, 3> transformed2;
