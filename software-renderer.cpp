@@ -11,12 +11,13 @@
 
 #include <glm/gtx/io.hpp>
 
+#include <chrono>
 #include <cstdlib>
 
 #define FPS 30.0
 #define TIME 30.0
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE false
+#define WRITE_FILE true
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
@@ -122,6 +123,7 @@ struct State {
 } state;
 
 int main(int argc, char *argv[]) {
+  auto t1 = std::chrono::high_resolution_clock::now();
   setup();
 
   SDL_Event event;
@@ -137,6 +139,27 @@ int main(int argc, char *argv[]) {
     }
 
     if (WRITE_FILE && state.frame < FRAMES) { // save frame as PPM
+      if (state.frame > 0 && state.frame % static_cast<int>(FPS) == 0) {
+        auto t2 = std::chrono::high_resolution_clock::now();
+        std::cout << "frames: " << static_cast<float>(state.frame) << std::endl;
+        std::cout
+            << "duration (s): "
+            << std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count()
+            << std::endl;
+        std::cout << "ms/frame: "
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 -
+                                                                           t1)
+                             .count() /
+                         static_cast<float>(state.frame)
+                  << std::endl;
+        std::cout << "frames/s: "
+                  << static_cast<float>(state.frame) /
+                         std::chrono::duration_cast<std::chrono::seconds>(t2 -
+                                                                          t1)
+                             .count()
+                  << std::endl;
+      }
+
       glmt::PPM ppm;
       ppm.header.width = window.width;
       ppm.header.height = window.height;
@@ -162,6 +185,23 @@ int main(int argc, char *argv[]) {
       std::ofstream file(filename.str());
       file << ppm;
     } else if (EXIT_AFTER_WRITE) {
+      auto t2 = std::chrono::high_resolution_clock::now();
+      std::cout << "frames: " << static_cast<float>(state.frame) << std::endl;
+      std::cout
+          << "duration (s): "
+          << std::chrono::duration_cast<std::chrono::seconds>(t2 - t1).count()
+          << std::endl;
+      std::cout << "ms/frame: "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(t2 -
+                                                                         t1)
+                           .count() /
+                       static_cast<float>(state.frame)
+                << std::endl;
+      std::cout << "frames/s: "
+                << static_cast<float>(state.frame) /
+                       std::chrono::duration_cast<std::chrono::seconds>(t2 - t1)
+                           .count()
+                << std::endl;
       exit(0);
     }
   }
@@ -282,7 +322,7 @@ light(const Model &model,
       state.view * model.matrix *
           glm::vec4(-0.234011, 5.218497 - 0.218497, -3.042968, 1) +
       glm::vec4(s3 * 2, 0, s5 * s7, 0);
-  const glm::vec3 direct_colour = glm::vec3(1, 1, 1) * (600.f + 100.f * s2);
+  const glm::vec3 direct_colour = glm::vec3(1, 1, 1) * (400.f + 100.f * s2);
   const glm::vec3 indirect_colour = glm::vec3(1, 1, 1) * 0.0745f;
   const glm::vec3 point_colour = model.colours[intersection.triangleIndex];
   const auto triangle_normal =
@@ -303,11 +343,13 @@ light(const Model &model,
   Intersection to_light;
   if (ClosestIntersection(light_position, -r, triangles, to_light)) {
     if (to_light.triangleIndex != intersection.triangleIndex) {
-      return tm_basic(point_colour * (indirect_colour));
+      return tm_hable(point_colour * (indirect_colour));
     }
   }
 
-  return tm_basic(point_colour *
+  // tonemap is simply a matter of preference here, but each plays differently
+  // with direct_colour's "light intensity"
+  return tm_hable(point_colour *
                   ((direct_colour * glm::max(glm::dot(r, n), 0.f)) /
                        (4 * glm::pi<float>() * (radius * radius)) +
                    indirect_colour));
@@ -328,6 +370,8 @@ void draw() {
       //     glm::tan(glm::radians(90.f / 2.0f));
       glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
 
+      // a simply optimisation would be to apply state.view * model.matrix
+      // figure out the bound2 and only go from min to max
       for (unsigned int x = 0; x < window.width; x++) {
         for (unsigned int y = 0; y < window.height; y++) {
           // glm::vec4 ray(((float)x - window.width / 2.0),
@@ -355,7 +399,6 @@ void draw() {
 
           if (ClosestIntersection(cameraPos, glm::normalize(ray), triangles,
                                   intersection)) {
-            glmt::rgbf01 c = model.colours[intersection.triangleIndex];
             glm::vec3 p = glm::project(
                 glm::vec3(intersection.position), glm::mat4(1), state.proj,
                 glm::vec4(0, 0, window.width, window.height));
@@ -398,8 +441,11 @@ void draw() {
         } else if (model.mode == Model::RenderMode::WIREFRAME_AA) {
           linetriangle(window, std::make_tuple(transformed2, model.colours[i]));
         } else if (model.mode == Model::RenderMode::FILL) {
-          filledtriangle(window,
-                         std::make_tuple(transformed, model.colours[i]));
+          const glm::vec4 light_position =
+              state.view * model.matrix *
+              glm::vec4(-0.234011, 5.218497 - 0.218497, -3.042968, 1);
+          glmt::rgbf01 c = tm_clamp(model.colours[i]);
+          filledtriangle(window, std::make_tuple(transformed, c));
         }
       }
     }
@@ -416,7 +462,7 @@ void update() {
   state.logic++;
 
   switch (state.logic) {
-  case int(FRAMES / 2 - FPS * 0.1):
+  case int(FRAMES / 2) - int(FPS * 0.5):
     state.models[0].mode = Model::RenderMode::FILL;
   case int(FRAMES / 2):
     state.models[0].mode = Model::RenderMode::WIREFRAME_AA;

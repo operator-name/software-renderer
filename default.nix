@@ -15,6 +15,7 @@ stdenv.mkDerivation rec {
     SDL2
 
     ffmpeg
+    mpv
   ];
 
   buildPhase = ''

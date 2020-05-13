@@ -492,6 +492,8 @@ bool ClosestIntersection(glm::vec4 start, glm::vec4 dir,
 }
 
 // https://en.wikipedia.org/wiki/Tone_mapping
+// https://github.com/tizian/tonemapper
+// https://64.github.io/tonemapping/
 // rgbf0inf tone mapping stuff, technically the return types are glmt::rgbf01
 // TODO: glmt::rgbf0inf types
 glm::vec3 tm_basic(glm::vec3 colour) {
@@ -501,6 +503,8 @@ glm::vec3 tm_basic(glm::vec3 colour) {
   return colour;
 }
 
+// john hable's uncharted 2 tone mapping function
+// http://filmicworlds.com/blog/filmic-tonemapping-operators/
 float hable(float x) {
   float A = 0.15;
   float B = 0.50;
@@ -533,4 +537,53 @@ glm::vec3 tm_hable(glm::vec3 colour) {
   colour *= glm::vec3(hable(sig) / sig);
 
   return colour;
+}
+
+glm::vec3 tm_clamp(glm::vec3 colour) {
+  return glm::clamp(colour, glm::vec3(0), glm::vec3(1));
+}
+
+// https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl
+glm::vec3 RRTAndODTFit(glm::vec3 v) {
+  glm::vec3 a = v * (v + 0.0245786f) - 0.000090537f;
+  glm::vec3 b = v * (0.983729f * v + 0.4329510f) + 0.238081f;
+  return a / b;
+}
+
+glm::vec3 tm_ACESFitted(glm::vec3 color) {
+  // sRGB => XYZ => D65_2_D60 => AP1 => RRT_SAT
+  const glm::mat3 ACESInputMat{{0.59719, 0.35458, 0.04823},
+                               {0.07600, 0.90834, 0.01566},
+                               {0.02840, 0.13383, 0.83777}};
+
+  // ODT_SAT => XYZ => D60_2_D65 => sRGB
+  const glm::mat3 ACESOutputMat{{1.60475, -0.53108, -0.07367},
+                                {-0.10208, 1.10813, -0.00605},
+                                {-0.00327, -0.07276, 1.07602}};
+
+  // glm::transpose since hlsl code is the wrong order
+  color = glm::transpose(ACESInputMat) * color;
+
+  // Apply RRT and ODT
+  color = RRTAndODTFit(color);
+
+  color = glm::transpose(ACESOutputMat) * color;
+
+  // Clamp to [0, 1]
+  color = glm::clamp(color, glm::vec3(0), glm::vec3(1));
+
+  return color;
+}
+
+// https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+glm::vec3 tm_aces_approx(glm::vec3 colour) {
+  colour *= 0.6f;
+  float a = 2.51f;
+  float b = 0.03f;
+  float c = 2.43f;
+  float d = 0.59f;
+  float e = 0.14f;
+  return glm::clamp((colour * (a * colour + b)) /
+                        (colour * (c * colour + d) + e),
+                    0.0f, 1.0f);
 }
