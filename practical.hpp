@@ -407,7 +407,8 @@ struct Intersection {
 };
 
 bool intersect(glm::vec4 start, glm::vec4 dir,
-               std::array<glm::vec4, 3> triangle, Intersection &intersection) {
+               const std::array<glm::vec4, 3> &triangle,
+               Intersection &intersection) {
 
   glm::vec4 v0 = triangle[0];
   glm::vec4 v1 = triangle[1];

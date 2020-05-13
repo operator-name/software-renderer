@@ -111,6 +111,8 @@ struct State {
   glm::mat4 view;
   glm::mat4 proj;
 
+  glmt::vec3w light = glm::vec4(0, 0, 0, 1);
+
   struct SDL_detail {
     bool mouse_down = false;
   } sdl;
@@ -241,6 +243,8 @@ void setup() {
     // model.position = glm::vec3(0, 0, 8);
 
     state.models.push_back(model);
+    // model.mode = Model::RenderMode::WIREFRAME;
+    // state.models.push_back(model);
   }
 
   window = sdw::window(WIDTH, HEIGHT, false);
@@ -251,6 +255,8 @@ void setup() {
   }
 }
 
+void rayTraceLight(Model m) {}
+
 void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
@@ -258,17 +264,22 @@ void draw() {
   linetriangle(window, state.unfilled_triangle);
   filledtriangle(window, state.filled_triangle);
 
+  // TODO: AoS to SoA
   for (const auto &model : state.models) {
     if (model.mode == Model::RenderMode::RAYTRACE) {
-      float focalLength =
-          (HEIGHT / 2) *
-          glm::tan(glm::radians(90.f / 2.0f)); // match perspective?
+      // float focalLength =
+      //     (HEIGHT / 2) *
+      //     glm::tan(glm::radians(90.f / 2.0f));
       glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
 
       for (unsigned int x = 0; x < window.width; x++) {
         for (unsigned int y = 0; y < window.height; y++) {
-          glm::vec4 ray(((float)x - window.width / 2.0),
-                        ((float)y - window.height / 2.0), -focalLength, 0.0);
+          // glm::vec4 ray(((float)x - window.width / 2.0),
+          //               ((float)y - window.height / 2.0), -focalLength, 0.0);
+          glm::vec4 ray = glm::vec4(
+              glm::unProject(glm::vec3(x, y, 1), glm::mat4(1.0), state.proj,
+                             glm::vec4(0, 0, window.width, window.height)),
+              0);
 
           Intersection intersection;
           std::vector<std::array<glm::vec4, 3>> triangles;
@@ -289,8 +300,10 @@ void draw() {
           if (ClosestIntersection(cameraPos, glm::normalize(ray), triangles,
                                   intersection)) {
             glmt::rgbf01 c = model.colours[intersection.triangleIndex];
-            // TODO: fix perspective and use zbuffer
-            window.setPixelColour(glmt::vec2p(x, y), c.argb8888());
+            glm::vec3 p = glm::project(
+                glm::vec3(intersection.position), glm::mat4(1), state.proj,
+                glm::vec4(0, 0, window.width, window.height));
+            window.setPixelColour(glmt::vec2p(x, y), 1.f / p.z, c.argb8888());
           }
         }
       }
@@ -301,15 +314,12 @@ void draw() {
         std::array<glmt::vec2s, 3> transformed2;
 
         for (size_t t = 0; t < transformed.size(); t++) {
-          // manually apply stuff, need to unpack if clipping to be implemented
-          // although clipping can be done in w space if using glm::project
-          // glmt::vec3l ls = std::get<0>(t)[i];
-          // glmt::vec3w ws = state.model.matrix * ls;
-          // glmt::vec3c cs = state.proj * state.view * ws;
-          // clipping done here
-          // glm::vec4 ss = cs; // viewport transformation below
-          // ss /= ss.w;
-          // ss *= glm::vec4(0.5, 0.5, 1, 1);
+          // manually apply stuff, need to unpack if near/far clipping to be
+          // implemented although clipping can be done in w space if using
+          // glm::project glmt::vec3l ls = std::get<0>(t)[i]; glmt::vec3w ws =
+          // state.model.matrix * ls; glmt::vec3c cs = state.proj * state.view *
+          // ws; clipping done here glm::vec4 ss = cs; // viewport
+          // transformation below ss /= ss.w; ss *= glm::vec4(0.5, 0.5, 1, 1);
           // ss += glm::vec4(0.5, 0.5, 0, 0);
           // ss += glm::vec4(0, 0, 0, 0); // glm::vec4(viewport[0], viewport[1],
           // 0, 0); ss *= glm::vec4(window.width, window.height, 1,
