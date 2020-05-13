@@ -20,7 +20,7 @@
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
-#define N 1
+#define N 2
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
 
@@ -47,7 +47,8 @@ struct Model {
   glm::vec3 position;
 
   enum class RenderMode {
-    WIREFRAME,
+    WIREFRAME_AA, // draw order matters, but lines are AA
+    WIREFRAME,    // draw order doesn't matter but lines are not AA
     FILL,
     RAYTRACE,
   };
@@ -101,8 +102,8 @@ struct Camera {
 };
 
 struct State {
-  std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
-  std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> filled_triangle;
+  // std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
+  // std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> filled_triangle;
 
   std::vector<Model> models;
   std::vector<Model::RenderMode> orig;
@@ -166,6 +167,25 @@ int main(int argc, char *argv[]) {
   }
 }
 
+// sets centre and scale such that model "centre of mass" is at 0, 0 and is at
+// most 1 unit
+Model align(Model model) {
+  glm::vec3 max(std::numeric_limits<float>::lowest());
+  glm::vec3 min(std::numeric_limits<float>::max());
+  for (const auto &triangle : model.triangles) {
+    for (const glmt::vec3l point : triangle) {
+      max = glm::max(max, glm::vec3(point));
+      min = glm::min(min, glm::vec3(point));
+    }
+  }
+
+  model.centre = glm::vec3(min + max) / 2.f;
+  float scale = 1 / glm::compMax(glm::abs(max - min));
+  model.scale = glm::vec3(scale, scale, scale);
+
+  return model;
+}
+
 void setup() {
   // seed random state to be the same each time (for debugging)
   // TODO: add proper random state
@@ -185,7 +205,7 @@ void setup() {
 
     model.scale *= 7;
     model.mode = Model::RenderMode::WIREFRAME;
-    model.position = glm::vec3(-4, 5, 0);
+    model.position = glm::vec3(-3, 4, 0);
 
     state.models.push_back(model);
   }
@@ -199,7 +219,7 @@ void setup() {
 
     model.scale *= 5;
     model.mode = Model::RenderMode::FILL;
-    model.position = glm::vec3(4, 5, 0);
+    model.position = glm::vec3(3, 4, 0);
 
     state.models.push_back(model);
   }
@@ -218,7 +238,7 @@ void setup() {
 
     model.scale *= 5;
     model.mode = Model::RenderMode::RAYTRACE;
-    model.position = glm::vec3(0, -5, 0);
+    model.position = glm::vec3(0, -3, 0);
     // model.position = glm::vec3(0, 0, 8);
 
     state.models.push_back(model);
@@ -226,19 +246,19 @@ void setup() {
     // state.models.push_back(model);
   }
 
-  state.orig.resize(state.models.size());
-  for (size_t i = 0; i < state.models.size(); i++) {
-    state.orig[i] = state.models[i].mode;
-    state.models[i].mode = state.models[i].mode == Model::RenderMode::RAYTRACE
-                               ? Model::RenderMode::FILL
-                               : state.models[i].mode;
-  }
-
   window = sdw::window(WIDTH, HEIGHT, false);
 
   if (WRITE_FILE) {
     std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps"
               << std::endl;
+  } else {
+    state.orig.resize(state.models.size());
+    for (size_t i = 0; i < state.models.size(); i++) {
+      state.orig[i] = state.models[i].mode;
+      state.models[i].mode = state.models[i].mode == Model::RenderMode::RAYTRACE
+                                 ? Model::RenderMode::FILL
+                                 : state.models[i].mode;
+    }
   }
 }
 
@@ -248,11 +268,22 @@ light(const Model &model,
       const Intersection &intersection) {
   // We'll use the colour space rgbf0inf implicitly
   // TODO: add rgbf0inf to glmt
+  // TODO: move things involving state.logic to update function
+  // TODO: add values into state and model
+  float delta = (state.logic / FPS); // s since start
+
+  float s2 = glm::sin(delta / 2);
+  float s3 = glm::sin(delta / 3);
+  float s5 = glm::sin(delta / 5);
+  float s7 = glm::sin(delta / 7);
+  float s11 = glm::sin(delta / 11);
+
   const glm::vec4 light_position =
       state.view * model.matrix *
-      glm::vec4(-0.234011, 5.218497 - 0.218497, -3.042968, 1);
-  const glm::vec3 direct_colour = glm::vec3(1, 1, 1) * 500.f;
-  const glm::vec3 indirect_colour = glm::vec3(1, 1, 1) * 0.2f;
+          glm::vec4(-0.234011, 5.218497 - 0.218497, -3.042968, 1) +
+      glm::vec4(s3 * 2, 0, s5 * s7, 0);
+  const glm::vec3 direct_colour = glm::vec3(1, 1, 1) * (600.f + 100.f * s2);
+  const glm::vec3 indirect_colour = glm::vec3(1, 1, 1) * 0.0745f;
   const glm::vec3 point_colour = model.colours[intersection.triangleIndex];
   const auto triangle_normal =
       [](std::array<glm::vec4, 3> triangle) -> glm::vec4 {
@@ -286,8 +317,8 @@ void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
 
-  linetriangle(window, state.unfilled_triangle);
-  filledtriangle(window, state.filled_triangle);
+  // linetriangle(window, state.unfilled_triangle);
+  // filledtriangle(window, state.filled_triangle);
 
   // TODO: AoS to SoA
   for (const auto &model : state.models) {
@@ -363,6 +394,8 @@ void draw() {
         }
 
         if (model.mode == Model::RenderMode::WIREFRAME) {
+          linetriangle(window, std::make_tuple(transformed, model.colours[i]));
+        } else if (model.mode == Model::RenderMode::WIREFRAME_AA) {
           linetriangle(window, std::make_tuple(transformed2, model.colours[i]));
         } else if (model.mode == Model::RenderMode::FILL) {
           filledtriangle(window,
@@ -382,6 +415,13 @@ void update() {
 
   state.logic++;
 
+  switch (state.logic) {
+  case int(FRAMES / 2 - FPS * 0.1):
+    state.models[0].mode = Model::RenderMode::FILL;
+  case int(FRAMES / 2):
+    state.models[0].mode = Model::RenderMode::WIREFRAME_AA;
+  }
+
   float delta = (state.logic / FPS); // s since start
 
   float s2 = glm::sin(delta / 2);
@@ -390,9 +430,9 @@ void update() {
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
 
-  // state.camera.yaw = (s2 * s3 * s7);
-  // state.camera.pitch = (s3 * s5 * s11);
-  // state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
+  state.camera.yaw = (s2 * s3 * s7);
+  state.camera.pitch = (s3 * s5 * s11);
+  state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
   state.proj = glm::perspectiveFov(state.camera.fov, (float)window.width,
@@ -400,8 +440,8 @@ void update() {
 
   for (size_t i = 0; i < state.models.size(); ++i) {
     glm::mat4 fun = glm::rotate(
-        delta, glm::euclidean(glm::vec2(glm::sin((delta + i) / 3),
-                                        glm::cos((delta + i) / 5))));
+        delta * 0.5f, glm::euclidean(glm::vec2(glm::sin((delta + i) / 3),
+                                               glm::cos((delta + i) / 5))));
 
     // TODO: proper typing in glmt
     // is this what we want? a translation of +y is intuitively upwards
@@ -411,7 +451,7 @@ void update() {
                    glm::vec4(state.models[i].position, 1);
 
     state.models[i].matrix =
-        glm::translate(glm::vec3(tp)) * (i == 0 ? fun : glm::mat4(1)) *
+        glm::translate(glm::vec3(tp)) * (i != 2 ? fun : glm::mat4(1)) *
         glm::scale(state.models[i].scale) *
         glm::scale(glm::vec3(1, -1, 1)) * // y is up to y is down
         glm::translate(-state.models[i].centre);
@@ -491,10 +531,10 @@ void handleEvent(SDL_Event event) {
       break;
     }
 
-    case SDLK_t:
-      state.unfilled_triangle = randomtriangleinside(window);
-      state.filled_triangle = randomtriangleinside(window);
-      break;
+    // case SDLK_t:
+    //   state.unfilled_triangle = randomtriangleinside(window);
+    //   state.filled_triangle = randomtriangleinside(window);
+    //   break;
     case SDLK_w:
       if (state.orig.empty()) {
         std::cout << "wireframe " << state.orig.size() << std::endl;

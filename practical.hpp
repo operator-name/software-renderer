@@ -72,7 +72,8 @@ void line(sdw::window window, glmt::vec2s start, glmt::vec2s end,
 
     glmt::rgbf01 next = glm::mix(glm::vec3(curr), glm::vec3(colour), c);
     window.setPixelColour(glmt::vec2p(x, y), next.argb8888());
-    // above code does "mix", which looks nice if it's only wireframe but not
+    // above code does "mix", which looks nice if it's only wireframe or a
+    // static background
   };
 
   // definition as per wikipedia begins
@@ -159,6 +160,37 @@ template <glmt::COLOUR_SPACE CS>
 void linetriangle(
     sdw::window window,
     std::tuple<std::array<glmt::vec2s, 3>, glmt::colour<CS>> triangle) {
+  line(window, std::get<0>(triangle)[0], std::get<0>(triangle)[1],
+       std::get<1>(triangle));
+  line(window, std::get<0>(triangle)[1], std::get<0>(triangle)[2],
+       std::get<1>(triangle));
+  line(window, std::get<0>(triangle)[2], std::get<0>(triangle)[0],
+       std::get<1>(triangle));
+}
+
+// naive line in 3d, with z as depth buffer
+// technically this is iso projection with no rotations if points aren't
+// transformed via proj matrix as an alternative perf increase try Bresenham in
+// 3d https://gist.github.com/yamamushi/5823518
+void line(sdw::window window, glmt::vec3s start, glmt::vec3s end,
+          glmt::rgbf01 colour) {
+  const float steps =
+      glm::ceil(glm::compMax(glm::abs(glm::vec2(end) - glm::vec2(start)))) +
+      1.f;
+  // Perspective projection preserves lines, but does not preserve distances.
+  start.z = 1.f / start.z;
+  end.z = 1.f / end.z;
+
+  for (size_t i = 0; i < steps; i++) {
+    glmt::vec3s p = glm::mix(glm::vec4(start), glm::vec4(end), i / steps);
+    window.setPixelColour(glmt::vec2p(p), p.z, colour.argb8888());
+  }
+}
+
+template <glmt::COLOUR_SPACE CS>
+void linetriangle(
+    sdw::window window,
+    std::tuple<std::array<glmt::vec3s, 3>, glmt::colour<CS>> triangle) {
   line(window, std::get<0>(triangle)[0], std::get<0>(triangle)[1],
        std::get<1>(triangle));
   line(window, std::get<0>(triangle)[1], std::get<0>(triangle)[2],
@@ -459,7 +491,9 @@ bool ClosestIntersection(glm::vec4 start, glm::vec4 dir,
   return closestIntersection.distance < std::numeric_limits<float>::infinity();
 }
 
-// rgbf0inf tone mapping
+// https://en.wikipedia.org/wiki/Tone_mapping
+// rgbf0inf tone mapping stuff, technically the return types are glmt::rgbf01
+// TODO: glmt::rgbf0inf types
 glm::vec3 tm_basic(glm::vec3 colour) {
   colour.x /= colour.x + 1;
   colour.y /= colour.y + 1;
@@ -499,23 +533,4 @@ glm::vec3 tm_hable(glm::vec3 colour) {
   colour *= glm::vec3(hable(sig) / sig);
 
   return colour;
-}
-
-// sets centre and scale such that model "centre of mass" is at 0, 0 and is at
-// most 1 unit
-Model align(Model model) {
-  glm::vec3 max(std::numeric_limits<float>::lowest());
-  glm::vec3 min(std::numeric_limits<float>::max());
-  for (const auto &triangle : model.triangles) {
-    for (const glmt::vec3l point : triangle) {
-      max = glm::max(max, glm::vec3(point));
-      min = glm::min(min, glm::vec3(point));
-    }
-  }
-
-  model.centre = glm::vec3(min + max) / 2.f;
-  float scale = 1 / glm::compMax(glm::abs(max - min));
-  model.scale = glm::vec3(scale, scale, scale);
-
-  return model;
 }
