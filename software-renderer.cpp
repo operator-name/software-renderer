@@ -111,8 +111,6 @@ struct State {
   glm::mat4 view;
   glm::mat4 proj;
 
-  glmt::vec3w light = glm::vec4(0, 0, 0, 1);
-
   struct SDL_detail {
     bool mouse_down = false;
   } sdl;
@@ -166,25 +164,6 @@ int main(int argc, char *argv[]) {
       exit(0);
     }
   }
-}
-
-// sets centre and scale such that model "centre of mass" is at 0, 0 and is at
-// most 1 unit
-Model align(Model model) {
-  glm::vec3 max(std::numeric_limits<float>::lowest());
-  glm::vec3 min(std::numeric_limits<float>::max());
-  for (const auto &triangle : model.triangles) {
-    for (const glmt::vec3l point : triangle) {
-      max = glm::max(max, glm::vec3(point));
-      min = glm::min(min, glm::vec3(point));
-    }
-  }
-
-  model.centre = glm::vec3(min + max) / 2.f;
-  float scale = 1 / glm::compMax(glm::abs(max - min));
-  model.scale = glm::vec3(scale, scale, scale);
-
-  return model;
 }
 
 void setup() {
@@ -247,6 +226,14 @@ void setup() {
     // state.models.push_back(model);
   }
 
+  state.orig.resize(state.models.size());
+  for (size_t i = 0; i < state.models.size(); i++) {
+    state.orig[i] = state.models[i].mode;
+    state.models[i].mode = state.models[i].mode == Model::RenderMode::RAYTRACE
+                               ? Model::RenderMode::FILL
+                               : state.models[i].mode;
+  }
+
   window = sdw::window(WIDTH, HEIGHT, false);
 
   if (WRITE_FILE) {
@@ -255,7 +242,45 @@ void setup() {
   }
 }
 
-void rayTraceLight(Model m) {}
+glmt::rgbf01
+light(const Model &model,
+      const std::vector<std::array<glm::vec4, 3>> &triangles, // camera space
+      const Intersection &intersection) {
+  // We'll use the colour space rgbf0inf implicitly
+  // TODO: add rgbf0inf to glmt
+  const glm::vec4 light_position =
+      state.view * model.matrix *
+      glm::vec4(-0.234011, 5.218497 - 0.218497, -3.042968, 1);
+  const glm::vec3 direct_colour = glm::vec3(1, 1, 1) * 500.f;
+  const glm::vec3 indirect_colour = glm::vec3(1, 1, 1) * 0.2f;
+  const glm::vec3 point_colour = model.colours[intersection.triangleIndex];
+  const auto triangle_normal =
+      [](std::array<glm::vec4, 3> triangle) -> glm::vec4 {
+    glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
+    glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
+    glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
+
+    return glm::vec4(
+        normal,
+        1.0); // normals should be transformed when the triangle is transformed
+  };
+
+  glm::vec4 r = glm::normalize(-intersection.position + light_position);
+  glm::vec4 n = triangle_normal(triangles[intersection.triangleIndex]);
+  float radius = glm::length(-intersection.position + light_position);
+
+  Intersection to_light;
+  if (ClosestIntersection(light_position, -r, triangles, to_light)) {
+    if (to_light.triangleIndex != intersection.triangleIndex) {
+      return tm_basic(point_colour * (indirect_colour));
+    }
+  }
+
+  return tm_basic(point_colour *
+                  ((direct_colour * glm::max(glm::dot(r, n), 0.f)) /
+                       (4 * glm::pi<float>() * (radius * radius)) +
+                   indirect_colour));
+}
 
 void draw() {
   window.clearPixels();
@@ -303,7 +328,9 @@ void draw() {
             glm::vec3 p = glm::project(
                 glm::vec3(intersection.position), glm::mat4(1), state.proj,
                 glm::vec4(0, 0, window.width, window.height));
-            window.setPixelColour(glmt::vec2p(x, y), 1.f / p.z, c.argb8888());
+            window.setPixelColour(
+                glmt::vec2p(x, y), 1.f / p.z,
+                light(model, triangles, intersection).argb8888());
           }
         }
       }
@@ -470,8 +497,8 @@ void handleEvent(SDL_Event event) {
       break;
     case SDLK_w:
       if (state.orig.empty()) {
-        std::cout << "wireframe" << std::endl;
-        state.orig.reserve(state.models.size());
+        std::cout << "wireframe " << state.orig.size() << std::endl;
+        state.orig.resize(state.models.size());
         for (size_t i = 0; i < state.models.size(); i++) {
           state.orig[i] = state.models[i].mode;
           state.models[i].mode = Model::RenderMode::WIREFRAME;
@@ -480,8 +507,8 @@ void handleEvent(SDL_Event event) {
       break;
     case SDLK_f:
       if (state.orig.empty()) {
-        std::cout << "fill" << std::endl;
-        state.orig.reserve(state.models.size());
+        std::cout << "fill " << state.orig.size() << std::endl;
+        state.orig.resize(state.models.size());
         for (size_t i = 0; i < state.models.size(); i++) {
           state.orig[i] = state.models[i].mode;
           state.models[i].mode = Model::RenderMode::FILL;
