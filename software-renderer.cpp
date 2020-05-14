@@ -17,11 +17,11 @@
 #define FPS 30.0
 #define TIME 30.0
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE false
+#define WRITE_FILE true
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
-#define N 1
+#define N 4
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
 
@@ -574,9 +574,6 @@ void update() {
     break;
   case int(FRAMES * 6 / 7):
     state.models[1].mode = Model::RenderMode::PATHTRACE;
-    break;
-  case int(FRAMES) - 1:
-    std::cout << "1 frame away" << std::endl;
     break;
   }
 
