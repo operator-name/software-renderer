@@ -609,7 +609,8 @@ struct Model {
     PATHTRACE,
     RASTERISE_VERTEX,
     RASTERISE_GOURAD,
-    RASTERISE_GOURAD_PATHTRACE,
+    RASTERISE_GOURAD_PATHTRACE, // unimplemented, a large refactor would be
+                                // needed but the concept is simple enough
   };
 
   RenderMode mode = RenderMode::WIREFRAME;
@@ -724,8 +725,17 @@ void filledtriangle(sdw::window window, std::array<glmt::vec3s, 3> transformed,
       float zinv = bc[0] / transformed[0].z + bc[1] / transformed[1].z +
                    bc[2] / transformed[2].z;
 
-      glm::vec3 col =
-          bc[0] * colours[0] + bc[1] * colours[1] + bc[2] * colours[2];
+      // naive vertex interpolation
+      // glm::vec3 col =
+      //     bc[0] * colours[0] + bc[1] * colours[1] + bc[2] * colours[2];
+      glm::vec3 col(0);
+      {
+        // perspective corrected col
+        for (int i = 0; i < 3; ++i) {
+          col += bc[i] * colours[i] / transformed[i].z;
+        }
+        col /= zinv;
+      }
       glmt::rgbf01 c = tm_aces(col);
 
       window.setPixelColour(glmt::vec2p(x, y), zinv, c.argb8888());
@@ -734,6 +744,10 @@ void filledtriangle(sdw::window window, std::array<glmt::vec3s, 3> transformed,
 }
 
 // assumes all vec3 are normalized
+// d = length of unnormalised r
+// r = light position - point position
+// n = triangle normal
+// c = point position - camera position
 glm::vec3 phong(const PointLight &light, float d, glm::vec3 r, glm::vec3 n,
                 glm::vec3 c) {
   glm::vec3 ambient = light.ambient();
@@ -780,4 +794,57 @@ glmt::rgbf01 pathtrace_light(
 
   return tm_aces(model_c * phong(light, radius, glm::vec3(r), glm::vec3(n),
                                  glm::normalize(glm::vec3(ray))));
+}
+
+void filledtriangle(sdw::window window, PointLight light,
+                    std::array<glmt::vec3s, 3> ss, std::array<glm::vec3, 3> cs,
+                    std::array<glm::vec3, 3> normals, glmt::rgbf01 colour) {
+
+  std::array<glmt::vec2s, 3> s_tri{glm::vec2(ss[0]), glm::vec2(ss[1]),
+                                   glm::vec2(ss[2])};
+  glmt::bound2s bounds(s_tri.begin(), s_tri.end());
+
+  bounds.min.x = glm::max(glm::floor(bounds.min.x), 0.f);
+  bounds.min.y = glm::max(glm::floor(bounds.min.y), 0.f);
+  bounds.max.x = glm::min(glm::ceil(bounds.max.x), (float)window.width);
+  bounds.max.y = glm::min(glm::ceil(bounds.max.y), (float)window.height);
+
+  for (int y = bounds.min.y; y <= bounds.max.y; y++) {
+    for (int x = bounds.min.x; x <= bounds.max.x; x++) {
+      glm::vec3 bc = barycentric(glmt::vec2s(x, y), s_tri);
+      if (bc[0] <= 0 || bc[1] <= 0 || bc[2] <= 0) {
+        // outside of triangle
+        continue;
+      }
+
+      float zinv = bc[0] / ss[0].z + bc[1] / ss[1].z + bc[2] / ss[2].z;
+
+      glm::vec3 bcs;
+      {
+        // perspective corrected normal
+        for (int i = 0; i < 3; ++i) {
+          bcs += bc[i] * cs[i] / ss[i].z;
+        }
+        bcs /= zinv;
+      }
+      glm::vec3 bnormal(0);
+      {
+        // perspective corrected normal
+        for (int i = 0; i < 3; ++i) {
+          bnormal += bc[i] * normals[i] / ss[i].z;
+        }
+        bnormal /= zinv;
+      }
+
+      float d = glm::length(glm::vec3(light.pos) - bcs);
+      glm::vec3 r = glm::normalize(glm::vec3(light.pos) - bcs);
+      glm::vec3 n = bnormal;
+      glm::vec3 c = glm::normalize(bcs); // in camera space camera, so
+                                         // camera is at (0, 0)
+      glm::vec3 col = colour * phong(light, d, r, n, c);
+      glmt::rgbf01 tm_col = tm_aces(col);
+
+      window.setPixelColour(glmt::vec2p(x, y), zinv, tm_col.argb8888());
+    }
+  }
 }

@@ -108,7 +108,7 @@ void setup() {
     }
     model = align(model);
 
-    model.scale *= 1;
+    model.scale *= 1.5;
     model.mode = Model::RenderMode::WIREFRAME;
     model.position = glm::vec3(1, -0.5, 1);
 
@@ -120,15 +120,6 @@ void setup() {
   if (WRITE_FILE) {
     std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps"
               << std::endl;
-  } else {
-    state.orig.resize(state.models.size());
-    for (size_t i = 0; i < state.models.size(); i++) {
-      state.orig[i] = state.models[i].mode;
-      state.models[i].mode =
-          state.models[i].mode == Model::RenderMode::PATHTRACE
-              ? Model::RenderMode::RASTERISE_VERTEX
-              : state.models[i].mode;
-    }
   }
 }
 
@@ -227,7 +218,7 @@ void draw() {
       // float focalLength =
       //     (HEIGHT / 2) *
       //     glm::tan(glm::radians(90.f / 2.0f));
-      glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1);
+      glm::vec4 cameraPos = glm::vec4(0, 0, 0, 1); // camera in camera space
 
       glmt::bound2s bounds;
       {
@@ -331,6 +322,17 @@ void draw() {
           filledtriangle(window,
                          std::make_tuple(transformed2, model.colours[i]));
         } else if (model.mode == Model::RenderMode::RASTERISE_GOURAD) {
+          std::array<glm::vec3, 3> normals;
+          std::array<glm::vec3, 3> cs;
+
+          for (size_t j = 0; j < normals.size(); j++) {
+            // use vertex normals if they exist
+            normals[j] = glm::vec3(triangle_normal(transformedc));
+            cs[j] = glm::vec3(transformedc[j]);
+          }
+
+          filledtriangle(window, state.light, transformed, cs, normals,
+                         model.colours[i]);
 
         } else if (model.mode == Model::RenderMode::RASTERISE_VERTEX) {
           std::array<glmt::rgbf01, 3> colours;
@@ -374,6 +376,22 @@ void update() {
   state.logic++;
 
   switch (state.logic) {
+  case 0:
+    state.models[0].mode = Model::RenderMode::FILL;
+    break;
+  case int(FRAMES * 1 / 7):
+    state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
+  case int(FRAMES * 2 / 7):
+    state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
+    state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
+    break;
+  case int(FRAMES * 3 / 7):
+    // state.models[0].mode = Model::RenderMode::PATHTRACE;
+    state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
+    break;
+  case int(FRAMES * 4 / 7):
+    state.models[1].mode = Model::RenderMode::WIREFRAME;
+    break;
   case int(FRAMES / 2) - int(FPS * 0.5):
     state.models[2].mode = Model::RenderMode::FILL;
     break;
@@ -394,12 +412,12 @@ void update() {
                                       glm::vec4(-0.234011, 5.218497 - 0.318497,
                                                 -3.042968, 1) +
                                   glm::vec4(s2, s3 + 2, s5 + 2, 0));
-  state.light.diff_b = 200.f;
-  state.light.spec_b = 5.f;
+  state.light.diff_b = 200.f + (s2 * s5) * 50 + 100;
+  state.light.spec_b = 5.f + (s2 * s5) * 0.5 + 0.8;
   state.light.ambi_b = 0.1f;
 
-  // state.camera.yaw = (s2 * s3 * s7);
-  // state.camera.pitch = (s3 * s5 * s11);
+  state.camera.yaw = 0.243 + (s2 * s3 * s7) * 0.2;
+  state.camera.pitch = -0.257 + (s3 * s5 * s11) * 0.2;
   // state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
 
   state.view = state.camera.view();
