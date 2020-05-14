@@ -21,7 +21,8 @@ namespace sdw {
 
     // Constructor method
     window();
-    window(int w, int h, bool fullscreen, std::string title = "COMS30115");
+    window(int w, int h, bool fullscreen,
+           std::string title = "hybrid software rasteriser");
     void close();
     void destroy();
     void renderFrame();

@@ -17,7 +17,7 @@
 #define FPS 30.0
 #define TIME 30.0
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE true
+#define WRITE_FILE false
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
@@ -111,7 +111,7 @@ void setup() {
 
     model.scale *= 1.5;
     model.mode = Model::RenderMode::WIREFRAME;
-    model.position = glm::vec3(1, -0.5, 1);
+    model.position = glm::vec3(0.9, -0.5, 0.9);
 
     state.models.push_back(model);
   }
@@ -227,8 +227,28 @@ float smin(const float a, const float b, const float k = 1.5f) {
   return glm::mix(b, a, h) - k * h * (1.0 - h);
 }
 
+float d_sphere(glmt::vec3w p) {
+  const float X = 10;
+  const float Y = 0.1;
+  float d1 = sphere(p - glm::vec4(0, 0, 0, 0), 0.4f);
+  float d2 = Y * sin(X * p.x) * sin(X * p.y) * sin(X * p.z);
+  return d1 + d2;
+}
+
+float twist_torus(glmt::vec3w p, float s2) {
+  const float k = 10.0; // or some other amount
+  float c = glm::cos(k * p.y);
+  float s = glm::sin(k * p.y);
+  glm::mat2 m = glm::mat2(c, -s, s, c);
+  glm::vec3 q = glm::vec3(m * glm::vec2(p.x, p.z), p.y);
+  return torus(glm::vec4(q, 1.f) - glm::vec4(0, 0, s2 * 2, 0),
+               glm::vec2(0.2f, 0.05f));
+  ;
+}
+
 float scene(const glmt::vec3w pos) {
-  float delta = (state.logic / FPS) * 5; // s since start
+  float logic = state.logic;
+  float delta = (logic / FPS) * 5; // s since start
 
   float s2 = glm::sin(delta / 2);
   float s3 = glm::sin(delta / 3);
@@ -241,14 +261,47 @@ float scene(const glmt::vec3w pos) {
   glm::mat4 fun = glm::rotate(
       delta * 0.5f,
       glm::euclidean(glm::vec2(glm::sin(delta / 7), glm::cos(delta / 9))));
-
-  result = glm::min(result, sphere(pos - glm::vec4(s2, 0, 0, 0), 0.7));
-  result = smin(result, sphere(pos - glm::vec4(0, s3, 0, 0), 0.5));
-  result = smin(
-      result, torus(glm::inverse(fun) * (pos - glm::vec4(s5 * 2, s7 * 3, 0, 0)),
-                    glm::vec2(1.0, 0.5)));
+  result = glm::min(result, d_sphere(pos));
+  result = smin(result, twist_torus(pos, s2));
+  result =
+      smin(result, sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1), 0.3));
+  result = smin(result, torus(fun * pos - glm::vec4(s5 * 2, s7 * 3, 0, 0),
+                              glm::vec2(1.0, 0.5)));
 
   return result;
+}
+
+// TODO: merge back into scene
+glm::vec3 colour(const glmt::vec3w pos) {
+  float logic = state.logic;
+  float delta = (logic / FPS) * 5; // s since start
+
+  float s2 = glm::sin(delta / 2);
+  float s3 = glm::sin(delta / 3);
+  float s5 = glm::sin(delta / 5);
+  float s7 = glm::sin(delta / 7);
+  float s11 = glm::sin(delta / 11);
+
+  float result = std::numeric_limits<float>::max();
+
+  glm::mat4 fun = glm::rotate(
+      delta * 0.5f,
+      glm::euclidean(glm::vec2(glm::sin(delta / 7), glm::cos(delta / 9))));
+  float dsph = d_sphere(pos) + 0.1;
+  float ttor = twist_torus(pos, s2) + 0.1;
+  float sphe = sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1), 0.3) + 0.1;
+  float toru =
+      torus(fun * pos - glm::vec4(s5 * 2, s7 * 3, 0, 0), glm::vec2(1.0, 0.5)) +
+      0.1;
+  glm::vec3 red(1, 0, 0);
+  glm::vec3 gre(0, 0, 1);
+  glm::vec3 blu(0, 0, 1);
+  glm::vec3 bla(0.00000000001);
+
+  const float p = 2;
+
+  return bla / glm::pow(toru, p) + red / glm::pow(sphe, p) +
+         gre / glm::pow(ttor, p) + blu / glm::pow(dsph, p);
 }
 
 float march(const glmt::vec3w eye, const glm::vec4 dir, const float start,
@@ -363,20 +416,19 @@ void draw() {
           glmt::vec3w ws = model.matrix * ls;
           glmt::vec3c cs = state.view * ws;
           // clipping done here
-          glm::vec4 ss = state.proj * cs; // viewport transformation below
-          ss /= ss.w;
-          ss *= glm::vec4(0.5, 0.5, 1, 1);
-          ss += glm::vec4(0.5, 0.5, 0, 0);
-          ss += glm::vec4(0, 0, 0,
-                          0); // glm::vec4(viewport[0], viewport[1], 0, 0);
-          ss *= glm::vec4(window.width, window.height, 1,
-                          1); // glm::vec4(viewport[2], viewport[3], 1, 1);
+          // glm::vec4 ss = state.proj * cs; // viewport transformation below
+          // ss /= ss.w;
+          // ss *= glm::vec4(0.5, 0.5, 1, 1);
+          // ss += glm::vec4(0.5, 0.5, 0, 0);
+          // ss += glm::vec4(0, 0, 0,
+          //                 0); // glm::vec4(viewport[0], viewport[1], 0, 0);
+          // ss *= glm::vec4(window.width, window.height, 1,
+          //                 1); // glm::vec4(viewport[2], viewport[3], 1, 1);
 
-          // glm::vec4 ss = glm::vec4(
-          //     glm::project(glm::vec3(model.triangles[i][t]),
-          //                  state.view * model.matrix, state.proj,
-          //                  glm::vec4(0, 0, window.width, window.height)),
-          //     1);
+          glm::vec4 ss = glm::vec4(
+              glm::project(glm::vec3(cs), glm::mat4(1), state.proj,
+                           glm::vec4(0, 0, window.width, window.height)),
+              1);
 
           transformedc[t] = cs;
           transformed[t] = ss;
@@ -459,17 +511,18 @@ void draw() {
               glm::length(glm::vec3(state.light.pos) - glm::vec3(pos));
           const glm::vec3 r =
               glm::normalize(glm::vec3(state.light.pos) - glm::vec3(pos));
-          const glm::vec3 n = normal(pos, EPSILON);
+          const glm::vec3 n = normal(start + dist * ray, EPSILON);
           const glm::vec3 c = glm::normalize(glm::vec3(pos));
 
-          glm::vec3 col = phong(state.light, d, r, n, c);
+          glm::vec3 col =
+              colour(start + dist * ray) * phong(state.light, d, r, n, c);
           glmt::rgbf01 tm = tm_aces(col);
 
           glm::vec3 z =
               glm::project(glm::vec3(pos), glm::mat4(1), state.proj,
                            glm::vec4(0, 0, window.width, window.height));
-          window.setPixelColour(glmt::vec2p(x, y), 1.f / z.z, tm.argb8888());
           // window.setPixelColour(glmt::vec2p(x, y), tm.argb8888());
+          window.setPixelColour(glmt::vec2p(x, y), 1.f / z.z, tm.argb8888());
         }
       }
     }
@@ -497,11 +550,11 @@ void update() {
 
   switch (state.logic) {
   case 0:
-    state.raymarch = true;
     state.models[0].mode = Model::RenderMode::FILL;
     break;
   case int(FRAMES * 1 / 7):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
+    break;
   case int(FRAMES * 2 / 7):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
@@ -512,15 +565,18 @@ void update() {
     break;
   case int(FRAMES * 4 / 7):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
+    state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
   case int(FRAMES * 5 / 7):
     state.raymarch = true;
+    state.models[1].mode = Model::RenderMode::WIREFRAME_AA;
+    state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES / 2) - int(FPS * 0.5):
-    state.models[2].mode = Model::RenderMode::FILL;
+  case int(FRAMES * 6 / 7):
+    state.models[1].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES / 2):
-    state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
+  case int(FRAMES) - 1:
+    std::cout << "1 frame away" << std::endl;
     break;
   }
 
@@ -532,25 +588,24 @@ void update() {
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
 
-  if (state.raymarch) {
-    state.light.pos = state.view *
-                      glm::rotate(glm::sin(delta) * 2.f, glm::vec3(1, 0, 0)) *
-                      glm::rotate(glm::cos(delta) * 2.f, glm::vec3(0, 1, 0)) *
-                      glm::vec4(0, 0, -2, 1);
-  } else {
-    state.light.pos =
-        state.view *
-        (state.models[0].matrix *
-             glm::vec4(-0.234011, 5.218497 - 0.318497, -3.042968, 1) +
-         glm::vec4(s2, s3 + 2, s5 + 2, 0));
-  }
-  state.light.diff_b = 200.f + (s2 * s5) * 50 + 100;
-  state.light.spec_b = 5.f + (s2 * s5) * 0.5 + 0.8;
-  state.light.ambi_b = 0.27f;
+  // if (state.raymarch) {
+  //   state.light.pos = state.view *
+  //                     glm::rotate(glm::sin(delta) * 2.f, glm::vec3(1, 0, 0))
+  //                     * glm::rotate(glm::cos(delta) * 2.f, glm::vec3(0, 1,
+  //                     0)) * glm::vec4(0, 0, -2, 1);
+  // } else {
+  state.light.pos = state.view * (state.models[0].matrix *
+                                      glm::vec4(-0.234011, 5.218497 - 0.318497,
+                                                -3.042968, 1) +
+                                  glm::vec4(s2, s3 + 2, s5 + 2, 0));
+  // }
+  state.light.diff_b = 200.f + (s2 * s5) * 50 + 70;
+  state.light.spec_b = 3.f + (s2 * s5) * 0.2 + 0.5;
+  state.light.ambi_b = 0.14f;
 
-  state.camera.yaw = 0.243 + (s2 * s3 * s7) * 0.2;
-  state.camera.pitch = -0.257 + (s3 * s5 * s11) * 0.2;
-  // state.camera.dist = 10 - 3 * (s2 * s3 * s5 * s7 * s11);
+  state.camera.yaw = 0.243 + (s2 * s3 * s7) * 0.3;
+  state.camera.pitch = -0.257 + (s3 * s5 * s11) * 0.4;
+  state.camera.dist = 5.7 - (1.5 * glm::clamp(state.logic / FRAMES, 0.0, 1.0));
 
   state.view = state.camera.view();
   state.proj = glm::perspectiveFov(state.camera.fov, (float)window.width,
@@ -649,33 +704,33 @@ void handleEvent(SDL_Event event) {
       break;
     }
 
-    // case SDLK_t:
-    //   state.unfilled_triangle = randomtriangleinside(window);
-    //   state.filled_triangle = randomtriangleinside(window);
-    //   break;
-    case SDLK_w:
+    case SDLK_m:
+      state.raymarch = !state.raymarch;
+      std::cout << "raymarch: " << state.raymarch << std::endl;
+      break;
+    case SDLK_r:
       if (state.orig.empty()) {
-        std::cout << "wireframe " << state.orig.size() << std::endl;
+        std::cout << "pathtrace " << state.orig.size() << std::endl;
         state.orig.resize(state.models.size());
         for (size_t i = 0; i < state.models.size(); i++) {
           state.orig[i] = state.models[i].mode;
-          state.models[i].mode = Model::RenderMode::WIREFRAME;
+          state.models[i].mode = Model::RenderMode::PATHTRACE;
         }
       }
       break;
-    case SDLK_f:
+    case SDLK_g:
       if (state.orig.empty()) {
-        std::cout << "fill " << state.orig.size() << std::endl;
+        std::cout << "gourad " << state.orig.size() << std::endl;
         state.orig.resize(state.models.size());
         for (size_t i = 0; i < state.models.size(); i++) {
           state.orig[i] = state.models[i].mode;
-          state.models[i].mode = Model::RenderMode::FILL;
+          state.models[i].mode = Model::RenderMode::RASTERISE_GOURAD;
         }
       }
       break;
     case SDLK_o:
       if (!state.orig.empty()) {
-        std::cout << "orig" << std::endl;
+        std::cout << "orig " << state.orig.size() << std::endl;
         for (size_t i = 0; i < state.models.size(); i++) {
           state.models[i].mode = state.orig[i];
         }
