@@ -683,7 +683,7 @@ struct Camera {
 };
 
 struct PointLight {
-  glm::vec4 pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+  glmt::vec3c pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
   // We'll use the colour space rgbf0inf implicitly
   // a better colour space would make stuff easier (less variables), such as

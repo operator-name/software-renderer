@@ -17,7 +17,7 @@
 #define FPS 30.0
 #define TIME 30.0
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE false
+#define WRITE_FILE true
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER true
 
@@ -45,6 +45,7 @@ struct State {
   glm::mat4 proj;
 
   PointLight light;
+  bool raymarch = false;
 
   struct SDL_detail {
     bool mouse_down = false;
@@ -208,6 +209,74 @@ int main(int argc, char *argv[]) {
   }
 }
 
+// https://iquilezles.org/www/articles/distfunctions/distfunctions.htm
+float sphere(const glmt::vec3w pos, const float radius) {
+  return glm::length(glm::vec3(pos)) - radius;
+}
+
+float torus(const glmt::vec3w p, const glm::vec2 t) {
+  glm::vec2 xz = glm::vec2(p.x, p.z);
+  glm::vec2 q = glm::vec2(glm::length(xz) - t.x, p.y);
+  return length(q) - t.y;
+}
+
+// https://iquilezles.org/www/articles/smin/smin.htm
+// polynomial smooth min (k = 0.1);
+float smin(const float a, const float b, const float k = 1.5f) {
+  const float h = glm::clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+  return glm::mix(b, a, h) - k * h * (1.0 - h);
+}
+
+float scene(const glmt::vec3w pos) {
+  float delta = (state.logic / FPS) * 5; // s since start
+
+  float s2 = glm::sin(delta / 2);
+  float s3 = glm::sin(delta / 3);
+  float s5 = glm::sin(delta / 5);
+  float s7 = glm::sin(delta / 7);
+  float s11 = glm::sin(delta / 11);
+
+  float result = std::numeric_limits<float>::max();
+
+  glm::mat4 fun = glm::rotate(
+      delta * 0.5f,
+      glm::euclidean(glm::vec2(glm::sin(delta / 7), glm::cos(delta / 9))));
+
+  result = glm::min(result, sphere(pos - glm::vec4(s2, 0, 0, 0), 0.7));
+  result = smin(result, sphere(pos - glm::vec4(0, s3, 0, 0), 0.5));
+  result = smin(
+      result, torus(glm::inverse(fun) * (pos - glm::vec4(s5 * 2, s7 * 3, 0, 0)),
+                    glm::vec2(1.0, 0.5)));
+
+  return result;
+}
+
+float march(const glmt::vec3w eye, const glm::vec4 dir, const float start,
+            const float end, const int steps, const float epsilon) {
+  float depth = start;
+  for (int i = 0; i < steps; i++) {
+    float dist = scene(eye + depth * dir);
+    if (dist < epsilon) {
+      return depth;
+    }
+    depth += dist;
+    if (depth >= end) {
+      return end;
+    }
+  }
+  return end;
+}
+
+// https://iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
+glm::vec3 normal(const glmt::vec3w p, const float epsilon) {
+  const glm::vec4 xyy(epsilon, 0, 0, 0);
+  const glm::vec4 yxy(0, epsilon, 0, 0);
+  const glm::vec4 yyx(0, 0, epsilon, 0);
+  return glm::normalize(glm::vec3(scene(p + xyy) - scene(p - xyy),
+                                  scene(p + yxy) - scene(p - yxy),
+                                  scene(p + yyx) - scene(p - yyx)));
+}
+
 void draw() {
   window.clearPixels();
   window.clearDepthBuffer();
@@ -357,13 +426,64 @@ void draw() {
     }
   }
 
-  {
+  if (state.raymarch) { // raymarch
+    const size_t MAX_MARCHING_STEPS = 256;
+    const float MIN_DIST = 0.0;  // raymarching doesn't have the same problems
+    const float MAX_DIST = 10.0; // match far plane from perspective
+    const float EPSILON = 0.001;
+
+    // const glmt::vec3w start = glm::inverse(state.view) * glm::vec4(0, 0, 0,
+    // 1);
+    const glmt::vec3w start =
+        glm::vec4(glm::unProject(glm::vec3(0, 0, 0), state.view, state.proj,
+                                 glm::vec4(0, 0, window.width, window.height)),
+                  1);
+
+    for (unsigned int y = 0; y < window.height; y++) {
+      for (unsigned int x = 0; x < window.width; x++) {
+        const glm::vec4 ray =
+            glm::vec4(glm::normalize(glm::unProject(
+                          glm::vec3(x, y, 1), state.view, state.proj,
+                          glm::vec4(0, 0, window.width, window.height))),
+                      0);
+
+        float dist =
+            march(start, ray, MIN_DIST, MAX_DIST, MAX_MARCHING_STEPS, EPSILON);
+
+        if (dist > MAX_DIST - EPSILON) {
+          // window.setPixelColour(glmt::vec2p(x, y),
+          //                       glmt::rgbf01(0.08f).argb8888());
+        } else {
+          const glmt::vec3c pos = state.view * (start + dist * ray);
+          const float d =
+              glm::length(glm::vec3(state.light.pos) - glm::vec3(pos));
+          const glm::vec3 r =
+              glm::normalize(glm::vec3(state.light.pos) - glm::vec3(pos));
+          const glm::vec3 n = normal(pos, EPSILON);
+          const glm::vec3 c = glm::normalize(glm::vec3(pos));
+
+          glm::vec3 col = phong(state.light, d, r, n, c);
+          glmt::rgbf01 tm = tm_aces(col);
+
+          glm::vec3 z =
+              glm::project(glm::vec3(pos), glm::mat4(1), state.proj,
+                           glm::vec4(0, 0, window.width, window.height));
+          window.setPixelColour(glmt::vec2p(x, y), 1.f / z.z, tm.argb8888());
+          // window.setPixelColour(glmt::vec2p(x, y), tm.argb8888());
+        }
+      }
+    }
+  } // end raymarch
+
+  { // light
     glm::vec3 light =
         glm::project(glm::vec3(state.light.pos), glm::mat4(1), state.proj,
                      glm::vec4(0, 0, window.width, window.height));
+
+    // window.setPixelColour(glmt::vec2p(light), glmt::rgbf01(1.f).argb8888());
     window.setPixelColour(glmt::vec2p(light), 1.f / light.z,
                           glmt::rgbf01(1.f).argb8888());
-  }
+  } // end light
 }
 
 void update() {
@@ -377,6 +497,7 @@ void update() {
 
   switch (state.logic) {
   case 0:
+    state.raymarch = true;
     state.models[0].mode = Model::RenderMode::FILL;
     break;
   case int(FRAMES * 1 / 7):
@@ -386,11 +507,14 @@ void update() {
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
   case int(FRAMES * 3 / 7):
-    // state.models[0].mode = Model::RenderMode::PATHTRACE;
+    state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
   case int(FRAMES * 4 / 7):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
+    break;
+  case int(FRAMES * 5 / 7):
+    state.raymarch = true;
     break;
   case int(FRAMES / 2) - int(FPS * 0.5):
     state.models[2].mode = Model::RenderMode::FILL;
@@ -408,13 +532,21 @@ void update() {
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
 
-  state.light.pos = state.view * (state.models[0].matrix *
-                                      glm::vec4(-0.234011, 5.218497 - 0.318497,
-                                                -3.042968, 1) +
-                                  glm::vec4(s2, s3 + 2, s5 + 2, 0));
+  if (state.raymarch) {
+    state.light.pos = state.view *
+                      glm::rotate(glm::sin(delta) * 2.f, glm::vec3(1, 0, 0)) *
+                      glm::rotate(glm::cos(delta) * 2.f, glm::vec3(0, 1, 0)) *
+                      glm::vec4(0, 0, -2, 1);
+  } else {
+    state.light.pos =
+        state.view *
+        (state.models[0].matrix *
+             glm::vec4(-0.234011, 5.218497 - 0.318497, -3.042968, 1) +
+         glm::vec4(s2, s3 + 2, s5 + 2, 0));
+  }
   state.light.diff_b = 200.f + (s2 * s5) * 50 + 100;
   state.light.spec_b = 5.f + (s2 * s5) * 0.5 + 0.8;
-  state.light.ambi_b = 0.1f;
+  state.light.ambi_b = 0.27f;
 
   state.camera.yaw = 0.243 + (s2 * s3 * s7) * 0.2;
   state.camera.pitch = -0.257 + (s3 * s5 * s11) * 0.2;
@@ -542,11 +674,13 @@ void handleEvent(SDL_Event event) {
       }
       break;
     case SDLK_o:
-      std::cout << "orig" << std::endl;
-      for (size_t i = 0; i < state.models.size(); i++) {
-        state.models[i].mode = state.orig[i];
+      if (!state.orig.empty()) {
+        std::cout << "orig" << std::endl;
+        for (size_t i = 0; i < state.models.size(); i++) {
+          state.models[i].mode = state.orig[i];
+        }
+        state.orig.clear();
       }
-      state.orig.clear();
     }
     break;
   case SDL_MOUSEBUTTONDOWN: {
