@@ -550,7 +550,7 @@ glm::vec3 RRTAndODTFit(glm::vec3 v) {
   return a / b;
 }
 
-glm::vec3 tm_ACESFitted(glm::vec3 color) {
+glm::vec3 tm_aces(glm::vec3 color) {
   // sRGB => XYZ => D65_2_D60 => AP1 => RRT_SAT
   const glm::mat3 ACESInputMat{{0.59719, 0.35458, 0.04823},
                                {0.07600, 0.90834, 0.01566},
@@ -586,4 +586,198 @@ glm::vec3 tm_aces_approx(glm::vec3 colour) {
   return glm::clamp((colour * (a * colour + b)) /
                         (colour * (c * colour + d) + e),
                     0.0f, 1.0f);
+}
+
+// strictly for what is supported for rendering, whereas glmt::OBJ may include
+// more data that the renderer does not support
+struct Model {
+  typedef std::array<glmt::vec3l, 3> triangle;
+
+  std::vector<triangle> triangles;
+  std::vector<glmt::rgbf01> colours;
+
+  glm::mat4 matrix; // model matrix with below stuff applied, TODO: proper types
+
+  glm::vec3 centre;
+  glm::vec3 scale = glm::vec3(1, 1, 1);
+  glm::vec3 position;
+
+  enum class RenderMode {
+    WIREFRAME_AA, // draw order matters, but lines are AA
+    WIREFRAME,    // draw order doesn't matter but lines are not AA
+    FILL,
+    PATHTRACE,
+    RASTERISE_VERTEX,
+    RASTERISE_GOURAD,
+    RASTERISE_GOURAD_PATHTRACE,
+  };
+
+  RenderMode mode = RenderMode::WIREFRAME;
+};
+
+// sets centre and scale such that model "centre of mass" is at 0, 0 and is at
+// most 1 unit
+Model align(Model model) {
+  glm::vec3 max(std::numeric_limits<float>::lowest());
+  glm::vec3 min(std::numeric_limits<float>::max());
+  for (const auto &triangle : model.triangles) {
+    for (const glmt::vec3l point : triangle) {
+      max = glm::max(max, glm::vec3(point));
+      min = glm::min(min, glm::vec3(point));
+    }
+  }
+
+  model.centre = glm::vec3(min + max) / 2.f;
+  float scale = 1 / glm::compMax(glm::abs(max - min));
+  model.scale = glm::vec3(scale, scale, scale);
+
+  return model;
+}
+
+#include <glm/gtx/transform.hpp>
+
+struct Camera {
+  glmt::vec3w target = glm::vec4(0, 0, 0, 1);
+
+  float dist = 5.7f;
+  float pitch = -0.257f;
+  float yaw = 0.243;
+  float rot_velocity = 0.05f;
+  float velocity = 0.05f;
+
+  // regular lookat, defaults positive y as up
+  glm::mat4 lookat(glm::vec3 from, glm::vec3 to,
+                   glm::vec3 up = glm::vec3(0, 1, 0)) {
+    glm::vec3 forward = glm::normalize(from - to);
+    glm::vec3 right = glm::cross(glm::normalize(up), forward);
+
+    glm::mat4 mat(1);
+
+    mat[0][0] = right.x;
+    mat[0][1] = right.y;
+    mat[0][2] = right.z;
+    mat[1][0] = up.x;
+    mat[1][1] = up.y;
+    mat[1][2] = up.z;
+    mat[2][0] = forward.x;
+    mat[2][1] = forward.y;
+    mat[2][2] = forward.z;
+
+    mat[3][0] = from.x;
+    mat[3][1] = from.y;
+    mat[3][2] = from.z;
+
+    return mat;
+  }
+
+  // "look at" but with orbit style configuration, nicer for demos
+  glm::mat4 view() {
+    glm::vec4 pos = glm::vec4(0, 0, -dist, 0) + target;
+    glm::mat4 rot = glm::rotate(pitch, glm::vec3(1, 0, 0)) *
+                    glm::rotate(yaw, glm::vec3(0, 1, 0));
+    return glm::translate(glm::vec3(pos)) * rot;
+  }
+
+  float fov = glm::radians(90.f);
+};
+
+struct PointLight {
+  glm::vec4 pos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+
+  // We'll use the colour space rgbf0inf implicitly
+  // a better colour space would make stuff easier (less variables), such as
+  // hsv/hsl/lab
+  // TODO: add rgbf0inf to glmt
+  float ambi_b = 300.f;
+  float diff_b = 0.2f; // we can update this using an approximate from
+  float spec_b = 50.f;
+  glm::vec3 ambi_c = glm::vec3(1, 1, 1);
+  glm::vec3 diff_c = glm::vec3(1, 1, 1);
+  glm::vec3 spec_c = glm::vec3(1, 1, 1);
+
+  glm::vec3 ambient() const { return ambi_c * ambi_b; }
+  glm::vec3 diffuse() const { return diff_c * diff_b; }
+  glm::vec3 specular() const { return spec_c * spec_b; }
+};
+
+void filledtriangle(sdw::window window, std::array<glmt::vec3s, 3> transformed,
+                    std::array<glmt::rgbf01, 3> colours) {
+
+  std::array<glmt::vec2s, 3> s_tri{glm::vec2(transformed[0]),
+                                   glm::vec2(transformed[1]),
+                                   glm::vec2(transformed[2])};
+  glmt::bound2s bounds(s_tri.begin(), s_tri.end());
+
+  bounds.min.x = glm::max(glm::floor(bounds.min.x), 0.f);
+  bounds.min.y = glm::max(glm::floor(bounds.min.y), 0.f);
+  bounds.max.x = glm::min(glm::ceil(bounds.max.x), (float)window.width);
+  bounds.max.y = glm::min(glm::ceil(bounds.max.y), (float)window.height);
+
+  for (int y = bounds.min.y; y <= bounds.max.y; y++) {
+    for (int x = bounds.min.x; x <= bounds.max.x; x++) {
+      glm::vec3 bc = barycentric(glmt::vec2s(x, y), s_tri);
+      if (bc[0] <= 0 || bc[1] <= 0 || bc[2] <= 0) {
+        // outside of triangle
+        continue;
+      }
+
+      float zinv = bc[0] / transformed[0].z + bc[1] / transformed[1].z +
+                   bc[2] / transformed[2].z;
+
+      glm::vec3 col =
+          bc[0] * colours[0] + bc[1] * colours[1] + bc[2] * colours[2];
+      glmt::rgbf01 c = tm_aces(col);
+
+      window.setPixelColour(glmt::vec2p(x, y), zinv, c.argb8888());
+    }
+  }
+}
+
+// assumes all vec3 are normalized
+glm::vec3 phong(const PointLight &light, float d, glm::vec3 r, glm::vec3 n,
+                glm::vec3 c) {
+  glm::vec3 ambient = light.ambient();
+  glm::vec3 diffuse = light.diffuse() * glm::max(glm::dot(r, n), 0.f) /
+                      (4 * glm::pi<float>() * glm::pow(d, 2.f));
+  glm::vec3 specular =
+      light.specular() *
+      glm::pow(glm::max(glm::dot(-c, glm::reflect(-r, n)), 0.f), 128.f);
+
+  return ambient + diffuse + specular;
+}
+
+glm::vec4 triangle_normal(std::array<glm::vec4, 3> triangle) {
+  glm::vec3 e1 = glm::vec3(triangle[1] - triangle[0]);
+  glm::vec3 e2 = glm::vec3(triangle[2] - triangle[0]);
+  glm::vec3 normal = glm::normalize(glm::cross(e2, e1));
+
+  // normals should be transformed when the triangle is transformed but using
+  // the normal matrix
+  return glm::vec4(normal, 1.0);
+};
+
+glmt::rgbf01 pathtrace_light(
+    const Model &model,
+    const std::vector<std::array<glm::vec4, 3>> &triangles, // camera space
+    const PointLight &light, const glm::vec4 &ray,
+    const Intersection &intersection) {
+  const glm::vec3 model_c = model.colours[intersection.triangleIndex];
+
+  glm::vec4 r = glm::normalize(-intersection.position + light.pos);
+  glm::vec4 n = triangle_normal(triangles[intersection.triangleIndex]);
+  // TODO: if moved, use <glm/gtx/norm.hpp> length2
+  float radius = glm::length(-intersection.position + light.pos);
+
+  Intersection to_light;
+  if (ClosestIntersection(light.pos, -r, triangles, to_light)) {
+    // light -> triangles for floating point lights normally removes the need to
+    // for a small normal bias
+    if (to_light.triangleIndex != intersection.triangleIndex) {
+      glm::vec3 ambient = light.ambient();
+      return tm_aces(model_c * (ambient));
+    }
+  }
+
+  return tm_aces(model_c * phong(light, radius, glm::vec3(r), glm::vec3(n),
+                                 glm::normalize(glm::vec3(ray))));
 }

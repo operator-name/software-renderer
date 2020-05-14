@@ -113,9 +113,18 @@ namespace sdw {
       // std::endl;
       return glmt::rgba8888::fromargb8888packed(
           -1); // TODO: return maybe? add semantics to vec2s?
-    } else
+    } else {
       return glmt::rgba8888::fromargb8888packed(
           pixelBuffer[(pos.y * width) + pos.x]);
+    }
+  }
+
+  float window::getDepthBuffer(glmt::vec2p pos) {
+    if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
+      return 1;
+    } else {
+      return depthBuffer[(pos.y * width) + pos.x];
+    }
   }
 
   void window::clearPixels() {

@@ -109,6 +109,7 @@ namespace glmt {
         min = minmax[0];
         max = minmax[1];
       }
+      bound2() {}
     };
 
     typedef vec2<px> vec2p; // pixel space vec2
