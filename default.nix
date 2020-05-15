@@ -5,15 +5,18 @@ stdenv.mkDerivation rec {
   src = ./.;
 
   buildInputs = with pkgs; [
+    SDL2 # dependancy
+    
+    clang-tools # clang-format
+    
+    # debugging
+    valgrind
     gcc_debug
     gdb
-    clang_9 # clang-format
-    clang-tools # clang-format
-    meshlab
     nemiver
 
-    SDL2
 
+    meshlab
     ffmpeg
     mpv
   ];

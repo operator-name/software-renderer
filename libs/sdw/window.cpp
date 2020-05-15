@@ -49,16 +49,12 @@ namespace sdw {
   }
 
   // Just close this window without quitting SDL
-  void window::close() {
-    delete[] pixelBuffer;
-    SDL_DestroyTexture(texture);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(_window);
-  }
+  void window::close() { SDL_DestroyWindow(_window); }
 
   // Deconstructor method
   void window::destroy() {
     delete[] pixelBuffer;
+    delete[] depthBuffer;
     SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(_window);
@@ -89,8 +85,9 @@ namespace sdw {
     if ((pos.x < 0) || (pos.x >= width) || (pos.y < 0) || (pos.y >= height)) {
       // std::cout << x << "," << y << " not on visible screen area" <<
       // std::endl;
-    } else
+    } else {
       pixelBuffer[(pos.y * width) + pos.x] = colour;
+    }
   }
 
   void window::setPixelColour(glmt::vec2p pos, float invz,

@@ -22,7 +22,10 @@
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER (true)
 
-#define N (6)
+// 2 for 640x480
+// 3 for 940x720
+// 6 for 1920x1440
+#define N (1)
 // a supersampled window which is 1/DS of the size, disabled by setting to 1
 #define DS (1)
 #define WIDTH (320 * N)
@@ -78,7 +81,8 @@ void setup() {
     model = align(model);
 
     model.scale *= 5;
-    model.mode = Model::RenderMode::PATHTRACE;
+    // model.mode = Model::RenderMode::PATHTRACE;
+    model.mode = Model::RenderMode::RASTERISE_GOURAD;
     model.position = glm::vec3(0, 0, 0);
     // model.position = glm::vec3(0, 0, 8);
 
@@ -125,10 +129,16 @@ void setup() {
     supersampled = sdw::window(WIDTH / DS, HEIGHT / DS, false,
                                "supersampled display window");
   }
-
+  if (!RENDER) {
+    // closed but not destroyed
+    window.close();
+    std::cout << "window closed" << std::endl;
+    window.setPixelColour(glmt::vec2p(0, 0), glmt::rgbf01(1.f).argb8888());
+    std::cout << "set pixel colour" << std::endl;
+  }
   if (WRITE_FILE) {
-    std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps"
-              << std::endl;
+    std::cout << "Saving " << FRAMES << " frames at " << FPS << " fps totaling "
+              << TIME << " seconds" << std::endl;
   }
 }
 
@@ -139,8 +149,9 @@ int main(int argc, char *argv[]) {
   SDL_Event event;
   while (true) {
     // We MUST poll for events - otherwise the window will freeze !
-    if (window.pollForInputEvents(&event))
+    if (window.pollForInputEvents(&event)) {
       handleEvent(event);
+    }
     update();
     draw();
 
@@ -212,6 +223,7 @@ int main(int argc, char *argv[]) {
                        std::chrono::duration_cast<std::chrono::seconds>(t2 - t1)
                            .count()
                 << std::endl;
+      window.destroy();
       exit(0);
     }
   }
@@ -409,6 +421,7 @@ void draw() {
             glm::min(glm::ceil(max), glm::vec2(window.width, window.height));
       }
 
+#pragma omp parallel for collapse(2)
       for (int y = bounds.min.y; y <= bounds.max.y; y++) {
         for (int x = bounds.min.x; x <= bounds.max.x; x++) {
           // glm::vec4 ray(((float)x - window.width / 2.0),
@@ -524,7 +537,7 @@ void draw() {
   }
 
   if (state.raymarch) { // raymarch
-    const size_t MAX_MARCHING_STEPS = 128;
+    const size_t MAX_MARCHING_STEPS = 256;
     const float MIN_DIST = 0.0;   // raymarching doesn't have the same problems
     const float MAX_DIST = 200.0; // match far plane from perspective
     const float EPSILON = 0.00001;
@@ -542,6 +555,7 @@ void draw() {
         std::vector<glm::vec2> samples;
 
         float angle = glm::radians(30.0f);
+        samples.push_back(glm::rotate(glm::vec2(+0.00, +0.00), angle));
         samples.push_back(glm::rotate(glm::vec2(-0.25, -0.25), angle));
         samples.push_back(glm::rotate(glm::vec2(-0.25, +0.25), angle));
         samples.push_back(glm::rotate(glm::vec2(+0.25, -0.25), angle));
@@ -650,6 +664,7 @@ void draw() {
   } // end light
 
   if (DS > 1) {
+#pragma omp parallel for collapse(2)
     for (unsigned int y = 0; y < supersampled.height; y++) {
       for (unsigned int x = 0; x < supersampled.width; x++) {
         std::array<glmt::vec2p, DS * DS> samples;
@@ -664,6 +679,7 @@ void draw() {
         }
 
         // should really do this before tone mapping
+        // or at least invert the tone map, sum and reapply
         glmt::rgbf01 col(0);
         glmt::vec2p pos(x, y);
 
@@ -688,48 +704,44 @@ void update() {
 
   state.logic++;
 
-  // state.models[0].mode = Model::RenderMode::NONE;
-  // state.models[1].mode = Model::RenderMode::NONE;
-  // state.models[2].mode = Model::RenderMode::NONE;
-
   switch (state.logic) {
   case 0:
     state.models[0].mode = Model::RenderMode::FILL;
     break;
-  case int(FRAMES * 1 / 61):
+  case int(FRAMES * 1 / 41):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 2 / 61):
+  case int(FRAMES * 2 / 41):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 3 / 61):
+  case int(FRAMES * 3 / 41):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
-  case int(FRAMES * 4 / 61):
+  case int(FRAMES * 4 / 41):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
     state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
-  case int(FRAMES * 5 / 61):
+  case int(FRAMES * 5 / 41):
     state.models[0].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[1].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 6 / 61):
+  case int(FRAMES * 6 / 41):
     state.models[0].mode = Model::RenderMode::WIREFRAME;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 8 / 61):
+  case int(FRAMES * 8 / 41):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 9 / 61):
+  case int(FRAMES * 9 / 41):
     state.raymarch = true;
     break;
-  case int(FRAMES * 10 / 61):
+  case int(FRAMES * 10 / 41):
     state.models[0].mode = Model::RenderMode::NONE;
     state.models[1].mode = Model::RenderMode::NONE;
     state.models[2].mode = Model::RenderMode::NONE;
