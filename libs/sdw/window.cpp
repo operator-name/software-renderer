@@ -49,7 +49,11 @@ namespace sdw {
   }
 
   // Just close this window without quitting SDL
-  void window::close() { SDL_DestroyWindow(_window); }
+  void window::close() {
+    SDL_DestroyTexture(texture);
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(_window);
+  }
 
   // Deconstructor method
   void window::destroy() {

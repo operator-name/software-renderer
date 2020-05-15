@@ -16,7 +16,7 @@
 #include <cstdlib>
 
 #define FPS (30.0)
-#define TIME (60.0)
+#define TIME (30.0)
 #define FRAMES (FPS * TIME)
 #define WRITE_FILE (true)
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
@@ -25,7 +25,7 @@
 // 2 for 640x480
 // 3 for 940x720
 // 6 for 1920x1440
-#define N (1)
+#define N (2)
 // a supersampled window which is 1/DS of the size, disabled by setting to 1
 #define DS (1)
 #define WIDTH (320 * N)
@@ -132,9 +132,6 @@ void setup() {
   if (!RENDER) {
     // closed but not destroyed
     window.close();
-    std::cout << "window closed" << std::endl;
-    window.setPixelColour(glmt::vec2p(0, 0), glmt::rgbf01(1.f).argb8888());
-    std::cout << "set pixel colour" << std::endl;
   }
   if (WRITE_FILE) {
     std::cout << "Saving " << FRAMES << " frames at " << FPS << " fps totaling "
@@ -708,40 +705,40 @@ void update() {
   case 0:
     state.models[0].mode = Model::RenderMode::FILL;
     break;
-  case int(FRAMES * 1 / 41):
+  case int(FRAMES * 1 / 20):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 2 / 41):
+  case int(FRAMES * 3 / 20):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 3 / 41):
+  case int(FRAMES * 5 / 20):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
-  case int(FRAMES * 4 / 41):
+  case int(FRAMES * 7 / 20):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
     state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
-  case int(FRAMES * 5 / 41):
+  case int(FRAMES * 9 / 20):
     state.models[0].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[1].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 6 / 41):
+  case int(FRAMES * 11 / 20):
     state.models[0].mode = Model::RenderMode::WIREFRAME;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 8 / 41):
+  case int(FRAMES * 13 / 20):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 9 / 41):
+  case int(FRAMES * 17 / 20):
     state.raymarch = true;
     break;
-  case int(FRAMES * 10 / 41):
+  case int(FRAMES * 18 / 20):
     state.models[0].mode = Model::RenderMode::NONE;
     state.models[1].mode = Model::RenderMode::NONE;
     state.models[2].mode = Model::RenderMode::NONE;
