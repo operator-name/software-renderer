@@ -697,7 +697,10 @@ struct PointLight {
   glm::vec3 diff_c = glm::vec3(1, 1, 1);
   glm::vec3 spec_c = glm::vec3(1, 1, 1);
 
-  float diffusion = 0.3f;
+  // animating this is quite interesting, but one must consider the model
+  // and point of light as making it too large will make diffusion points cross 
+  // surface boundaries
+  float diffusion = 0.3f; 
 
   glm::vec3 ambient() const { return ambi_c * ambi_b; }
   glm::vec3 diffuse() const { return diff_c * diff_b; }

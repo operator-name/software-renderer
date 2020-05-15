@@ -19,7 +19,7 @@
 #define TIME (30.0)
 #define FRAMES (FPS * TIME)
 #define WRITE_FILE (true)
-#define EXIT_AFTER_WRITE (WRITE_FILE && true)
+#define EXIT_AFTER_WRITE (WRITE_FILE && false)
 #define RENDER (true)
 
 // 2 for 640x480
@@ -583,7 +583,7 @@ void draw() {
                              EPSILON);
 
           if (dist > MAX_DIST - EPSILON) {
-            // http://www.scratchapixel.com/old/lessons/3d-advanced-lessons/simulating-the-colors-of-the-sky/atmospheric-scattering/
+            // https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/simulating-sky
             glm::vec3 rd = glm::vec3(ray.x, -ray.y, ray.z);
             float yd = glm::min(rd.y, 0.0f);
             rd.y = glm::max(rd.y, 0.0f);
@@ -705,18 +705,18 @@ void update() {
   case 0:
     state.models[0].mode = Model::RenderMode::FILL;
     break;
-  case int(FRAMES * 1 / 20):
+  case int(FRAMES * 2 / 20):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 3 / 20):
+  case int(FRAMES * 4 / 20):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 5 / 20):
+  case int(FRAMES * 6 / 20):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
-  case int(FRAMES * 7 / 20):
+  case int(FRAMES * 8 / 20):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
     state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
@@ -735,10 +735,10 @@ void update() {
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 17 / 20):
+  case int(FRAMES * 14 / 20):
     state.raymarch = true;
     break;
-  case int(FRAMES * 18 / 20):
+  case int(FRAMES * 15 / 20):
     state.models[0].mode = Model::RenderMode::NONE;
     state.models[1].mode = Model::RenderMode::NONE;
     state.models[2].mode = Model::RenderMode::NONE;
@@ -763,7 +763,7 @@ void update() {
 
   state.camera.yaw = 0.243 + (s2 * s3 * s7) * 0.3;
   state.camera.pitch = -0.257 + (s3 * s5 * s11) * 0.4;
-  state.camera.dist = 5.7 - (1.5 * glm::clamp(state.logic / FRAMES, 0.0, 1.0));
+  state.camera.dist = 5.7 + (2 * glm::clamp(state.logic / FRAMES, 0.0, 1.0));
 
   state.view = state.camera.view();
   state.proj = glm::perspectiveFov(state.camera.fov, (float)window.width,
@@ -914,6 +914,7 @@ void handleEvent(SDL_Event event) {
               << ", y = " << event.button.y << "}" << std::endl;
     break;
   case SDL_MOUSEMOTION:
+    // only works if window isn't cleared
     if (state.sdl.mouse_down) {
       glmt::rgb888 colour(glm::linearRand(0, 255), glm::linearRand(0, 255),
                           glm::linearRand(0, 255));
