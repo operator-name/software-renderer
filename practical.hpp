@@ -598,11 +598,12 @@ struct Model {
 
   glm::mat4 matrix; // model matrix with below stuff applied, TODO: proper types
 
-  glm::vec3 centre;
+  glm::vec3 centre = glm::vec3(0, 0, 0);
   glm::vec3 scale = glm::vec3(1, 1, 1);
-  glm::vec3 position;
+  glm::vec3 position = glm::vec3(0, 0, 0);
 
   enum class RenderMode {
+    NONE,
     WIREFRAME_AA, // draw order matters, but lines are AA
     WIREFRAME,    // draw order doesn't matter but lines are not AA
     FILL,
@@ -696,6 +697,8 @@ struct PointLight {
   glm::vec3 diff_c = glm::vec3(1, 1, 1);
   glm::vec3 spec_c = glm::vec3(1, 1, 1);
 
+  float diffusion = 0.3f;
+
   glm::vec3 ambient() const { return ambi_c * ambi_b; }
   glm::vec3 diffuse() const { return diff_c * diff_b; }
   glm::vec3 specular() const { return spec_c * spec_b; }
@@ -770,7 +773,7 @@ glm::vec4 triangle_normal(std::array<glm::vec4, 3> triangle) {
   return glm::vec4(normal, 1.0);
 };
 
-glmt::rgbf01 pathtrace_light(
+glm::vec3 pathtrace_light(
     const Model &model,
     const std::vector<std::array<glm::vec4, 3>> &triangles, // camera space
     const PointLight &light, const glm::vec4 &ray,
@@ -788,12 +791,52 @@ glmt::rgbf01 pathtrace_light(
     // for a small normal bias
     if (to_light.triangleIndex != intersection.triangleIndex) {
       glm::vec3 ambient = light.ambient();
-      return tm_aces(model_c * (ambient));
+      return (model_c * (ambient));
     }
   }
 
-  return tm_aces(model_c * phong(light, radius, glm::vec3(r), glm::vec3(n),
-                                 glm::normalize(glm::vec3(ray))));
+  return (model_c * phong(light, radius, glm::vec3(r), glm::vec3(n),
+                          glm::normalize(glm::vec3(ray))));
+}
+
+glmt::rgbf01 pathtrace_light(
+    const Model &model,
+    const std::vector<std::array<glm::vec4, 3>> &triangles, // camera space
+    const PointLight &light, glm::mat4 view, const glm::vec4 &ray,
+    const Intersection &intersection) {
+  std::vector<std::tuple<glm::vec3, float>> light_samples;
+
+  // should this have a different weighting?
+  const float cw = 1 / 6.f;
+  const float sw = (1 - cw) / 6.f;
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+0.0f, +0.0f, +0.0f), cw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+1.0f, +0.0f, +0.0f), sw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+0.0f, +1.0f, +0.0f), sw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+0.0f, +0.0f, +1.0f), sw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(-1.0f, +0.0f, +0.0f), sw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+0.0f, -1.0f, +0.0f), sw));
+  light_samples.push_back(
+      std::make_tuple(light.diffusion * glm::vec3(+0.0f, +0.0f, -1.0f), sw));
+
+  glm::vec3 l_col(0);
+  for (const auto light_sample : light_samples) {
+    PointLight pl = light;
+    // absolutely disgusting, it would be much nicer for light.pos to
+    // be in glmt::vec3w
+    pl.pos = view * (glm::vec4(std::get<0>(light_sample), 0) +
+                     glm::inverse(view) * light.pos);
+
+    l_col += pathtrace_light(model, triangles, pl, ray, intersection) *
+             std::get<1>(light_sample);
+  }
+
+  return tm_aces(l_col);
 }
 
 void filledtriangle(sdw::window window, PointLight light,

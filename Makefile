@@ -9,7 +9,7 @@ WINDOW_OBJECT = libs/sdw/window.o
 
 # Build settings
 COMPILER = g++ # clang++
-COMPILER_OPTIONS = -c -pipe -Wall -std=c++11
+COMPILER_OPTIONS = -c -pipe -Wall -std=c++11 # -Wextra
 DEBUG_OPTIONS = -ggdb -g3
 FUSSY_OPTIONS = -Werror -pedantic
 SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fno-omit-frame-pointer #-fsanitize=address

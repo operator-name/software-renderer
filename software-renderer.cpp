@@ -7,6 +7,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/component_wise.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/transform.hpp>
 
 #include <glm/gtx/io.hpp>
@@ -14,14 +15,19 @@
 #include <chrono>
 #include <cstdlib>
 
-#define FPS 30.0
-#define TIME 30.0
+#define FPS (30.0)
+#define TIME (30.0)
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE true
+#define WRITE_FILE (false)
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
-#define RENDER true
+#define RENDER (true)
 
-#define N 4
+// AA by stealing a few pixels from your neighbours
+#define NEIGHBOUR_AA (false)
+#define N (1)
+#define DS                                                                     \
+  (1) // a supersampled window which is 1/DS of the size, disabled by setting to
+      // 1
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
 
@@ -32,6 +38,7 @@ void handleEvent(SDL_Event event);
 
 // TODO: move into State struct
 sdw::window window;
+sdw::window supersampled;
 
 struct State {
   // std::tuple<std::array<glmt::vec2s, 3>, glmt::rgb888> unfilled_triangle;
@@ -117,6 +124,10 @@ void setup() {
   }
 
   window = sdw::window(WIDTH, HEIGHT, false);
+  if (DS > 1) {
+    supersampled = sdw::window(WIDTH / DS, HEIGHT / DS, false,
+                               "supersampled display window");
+  }
 
   if (WRITE_FILE) {
     std::cout << "Saving " << FRAMES << "frames at " << FPS << "fps"
@@ -228,22 +239,31 @@ float smin(const float a, const float b, const float k = 1.5f) {
 }
 
 float d_sphere(glmt::vec3w p) {
+  float lin = glm::clamp(state.logic / FRAMES, 0.0, 1.0);
+
   const float X = 10;
   const float Y = 0.1;
-  float d1 = sphere(p - glm::vec4(0, 0, 0, 0), 0.4f);
+  float d1 = sphere(p - glm::vec4(0, 0, 0, 0), 0.4f + lin * 2);
   float d2 = Y * sin(X * p.x) * sin(X * p.y) * sin(X * p.z);
   return d1 + d2;
 }
 
 float twist_torus(glmt::vec3w p, float s2) {
-  const float k = 10.0; // or some other amount
+  float lin = glm::clamp(state.logic / FRAMES, 0.0, 1.0);
+
+  const float k = 10.0 - lin * 5; // or some other amount
   float c = glm::cos(k * p.y);
   float s = glm::sin(k * p.y);
   glm::mat2 m = glm::mat2(c, -s, s, c);
   glm::vec3 q = glm::vec3(m * glm::vec2(p.x, p.z), p.y);
   return torus(glm::vec4(q, 1.f) - glm::vec4(0, 0, s2 * 2, 0),
-               glm::vec2(0.2f, 0.05f));
+               glm::vec2(0.2f + lin, 0.05f + lin * 0.5));
   ;
+}
+
+float plane(glmt::vec3w p, glm::vec4 n) // n must be normalized
+{
+  return glm::dot(glm::vec3(p), glm::vec3(n)) + n.w;
 }
 
 float scene(const glmt::vec3w pos) {
@@ -255,18 +275,20 @@ float scene(const glmt::vec3w pos) {
   float s5 = glm::sin(delta / 5);
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
-
-  float result = std::numeric_limits<float>::max();
+  float lin = glm::clamp(state.logic / FRAMES, 0.0, 1.0);
 
   glm::mat4 fun = glm::rotate(
       delta * 0.5f,
       glm::euclidean(glm::vec2(glm::sin(delta / 7), glm::cos(delta / 9))));
-  result = glm::min(result, d_sphere(pos));
+
+  float result = d_sphere(pos);
   result = smin(result, twist_torus(pos, s2));
-  result =
-      smin(result, sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1), 0.3));
+  result = smin(result, sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1),
+                               0.3 + lin * 0.7));
   result = smin(result, torus(fun * pos - glm::vec4(s5 * 2, s7 * 3, 0, 0),
                               glm::vec2(1.0, 0.5)));
+  result = glm::min(result,
+                    plane(pos - glm::vec4(0, 6, 0, 0), glm::vec4(0, -1, 0, 0)));
 
   return result;
 }
@@ -281,27 +303,36 @@ glm::vec3 colour(const glmt::vec3w pos) {
   float s5 = glm::sin(delta / 5);
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
-
-  float result = std::numeric_limits<float>::max();
+  float lin = glm::clamp(state.logic / FRAMES, 0.0, 1.0);
 
   glm::mat4 fun = glm::rotate(
       delta * 0.5f,
       glm::euclidean(glm::vec2(glm::sin(delta / 7), glm::cos(delta / 9))));
+
+  float plan = plane(pos - glm::vec4(0, 6, 0, 0), glm::vec4(0, -1, 0, 0));
+  if (plan < 0.00001f) {
+    float f =
+        glm::mod(glm::floor(0.5f * pos.z) + glm::floor(0.5f * pos.x), 2.0f);
+    return 0.8f + 0.1f * f * glm::vec3(4.0f);
+  }
+
   float dsph = d_sphere(pos) + 0.1;
   float ttor = twist_torus(pos, s2) + 0.1;
-  float sphe = sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1), 0.3) + 0.1;
+  float sphe =
+      sphere(pos - glm::vec4(0, s3 - 1, s3 * 1.5 + 2, 1), 0.3 + lin * 0.7) +
+      0.1;
   float toru =
       torus(fun * pos - glm::vec4(s5 * 2, s7 * 3, 0, 0), glm::vec2(1.0, 0.5)) +
       0.1;
   glm::vec3 red(1, 0, 0);
   glm::vec3 gre(0, 0, 1);
   glm::vec3 blu(0, 0, 1);
-  glm::vec3 bla(0.00000000001);
+  glm::vec3 pur(0.01, 0, 0.01);
 
   const float p = 2;
 
-  return bla / glm::pow(toru, p) + red / glm::pow(sphe, p) +
-         gre / glm::pow(ttor, p) + blu / glm::pow(dsph, p);
+  return (pur / glm::pow(toru, p) + red / glm::pow(sphe, p) +
+          gre / glm::pow(ttor, p) + blu / glm::pow(dsph, p));
 }
 
 float march(const glmt::vec3w eye, const glm::vec4 dir, const float start,
@@ -310,14 +341,14 @@ float march(const glmt::vec3w eye, const glm::vec4 dir, const float start,
   for (int i = 0; i < steps; i++) {
     float dist = scene(eye + depth * dir);
     if (dist < epsilon) {
-      return depth;
+      return depth + epsilon;
     }
     depth += dist;
     if (depth >= end) {
-      return end;
+      return end + epsilon;
     }
   }
-  return end;
+  return end + epsilon;
 }
 
 // https://iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
@@ -328,6 +359,23 @@ glm::vec3 normal(const glmt::vec3w p, const float epsilon) {
   return glm::normalize(glm::vec3(scene(p + xyy) - scene(p - xyy),
                                   scene(p + yxy) - scene(p - yxy),
                                   scene(p + yyx) - scene(p - yyx)));
+}
+
+// compute ambient occlusion value at given position/normal
+// https://www.iquilezles.org/www/articles/sphereao/sphereao.htm
+float ao(const glmt::vec3w pos, const float e) {
+  const glm::vec3 n = normal(pos, e);
+
+  float occ = 0.0f;
+  float sca = 1.0f;
+  for (float i = 0; i < 5.0f; i++) {
+    float hr = 0.01f + 0.12f * i / 4.0f;
+    glm::vec3 aopos = n * hr + glm::vec3(pos);
+    float dd = scene(glm::vec4(aopos, 1));
+    occ += -(dd - hr) * sca;
+    sca *= 0.95f;
+  }
+  return glm::clamp(1.0f - 3.0f * occ, 0.0f, 1.0f);
 }
 
 void draw() {
@@ -396,7 +444,7 @@ void draw() {
                 glm::vec4(0, 0, window.width, window.height));
             window.setPixelColour(glmt::vec2p(x, y), 1.f / p.z,
                                   pathtrace_light(model, triangles, state.light,
-                                                  ray, intersection)
+                                                  state.view, ray, intersection)
                                       .argb8888());
           }
         }
@@ -479,10 +527,10 @@ void draw() {
   }
 
   if (state.raymarch) { // raymarch
-    const size_t MAX_MARCHING_STEPS = 256;
-    const float MIN_DIST = 0.0;  // raymarching doesn't have the same problems
-    const float MAX_DIST = 10.0; // match far plane from perspective
-    const float EPSILON = 0.001;
+    const size_t MAX_MARCHING_STEPS = 128;
+    const float MIN_DIST = 0.0;   // raymarching doesn't have the same problems
+    const float MAX_DIST = 200.0; // match far plane from perspective
+    const float EPSILON = 0.00001;
 
     // const glmt::vec3w start = glm::inverse(state.view) * glm::vec4(0, 0, 0,
     // 1);
@@ -491,39 +539,99 @@ void draw() {
                                  glm::vec4(0, 0, window.width, window.height)),
                   1);
 
+#pragma omp parallel for collapse(2)
     for (unsigned int y = 0; y < window.height; y++) {
       for (unsigned int x = 0; x < window.width; x++) {
-        const glm::vec4 ray =
-            glm::vec4(glm::normalize(glm::unProject(
-                          glm::vec3(x, y, 1), state.view, state.proj,
-                          glm::vec4(0, 0, window.width, window.height))),
-                      0);
+        std::vector<glm::vec2> samples;
 
-        float dist =
-            march(start, ray, MIN_DIST, MAX_DIST, MAX_MARCHING_STEPS, EPSILON);
+        float angle = glm::radians(30.0f);
+        samples.push_back(glm::rotate(glm::vec2(-0.25, -0.25), angle));
+        samples.push_back(glm::rotate(glm::vec2(-0.25, +0.25), angle));
+        samples.push_back(glm::rotate(glm::vec2(+0.25, -0.25), angle));
+        samples.push_back(glm::rotate(glm::vec2(+0.25, +0.25), angle));
 
-        if (dist > MAX_DIST - EPSILON) {
-          // window.setPixelColour(glmt::vec2p(x, y),
-          //                       glmt::rgbf01(0.08f).argb8888());
-        } else {
-          const glmt::vec3c pos = state.view * (start + dist * ray);
-          const float d =
-              glm::length(glm::vec3(state.light.pos) - glm::vec3(pos));
-          const glm::vec3 r =
-              glm::normalize(glm::vec3(state.light.pos) - glm::vec3(pos));
-          const glm::vec3 n = normal(start + dist * ray, EPSILON);
-          const glm::vec3 c = glm::normalize(glm::vec3(pos));
+        // // random samples
+        // for (size_t s = 0; s < 4; s++) {
+        //   const glm::vec2 sd = glm::vec2(0.5f / 3.0f);
+        //   samples.push_back(glm::gaussRand(glm::vec2(0), sd));
+        //   // samples.push_back(
+        //   //     glm::linearRand(glm::vec2(-0.5, -0.5), glm::vec2(0.5,
+        //   // 0.5)));
+        // }
 
-          glm::vec3 col =
-              colour(start + dist * ray) * phong(state.light, d, r, n, c);
-          glmt::rgbf01 tm = tm_aces(col);
+        // no sampling
+        // samples.push_back(glm::vec2(0));
 
-          glm::vec3 z =
-              glm::project(glm::vec3(pos), glm::mat4(1), state.proj,
-                           glm::vec4(0, 0, window.width, window.height));
-          // window.setPixelColour(glmt::vec2p(x, y), tm.argb8888());
-          window.setPixelColour(glmt::vec2p(x, y), 1.f / z.z, tm.argb8888());
+        glm::vec3 col(0);
+        float zinv = 0;
+        for (const auto sample : samples) {
+          const glm::vec4 ray = glm::vec4(
+              glm::normalize(glm::unProject(
+                  glm::vec3(glm::vec2(x, y) + sample, 1), state.view,
+                  state.proj, glm::vec4(0, 0, window.width, window.height))),
+              0);
+
+          float dist = march(start, ray, MIN_DIST, MAX_DIST, MAX_MARCHING_STEPS,
+                             EPSILON);
+
+          if (dist > MAX_DIST - EPSILON) {
+            // http://www.scratchapixel.com/old/lessons/3d-advanced-lessons/simulating-the-colors-of-the-sky/atmospheric-scattering/
+            glm::vec3 rd = glm::vec3(ray.x, -ray.y, ray.z);
+            float yd = glm::min(rd.y, 0.0f);
+            rd.y = glm::max(rd.y, 0.0f);
+
+            glm::vec3 sky_col(0.0f);
+            sky_col += glm::vec3(0.3f, 0.5f, 0.6f) *
+                       (1.0f - glm::exp(-rd.y * 8.0f)) *
+                       glm::exp(rd.y * 0.9f); // blue sky
+            sky_col +=
+                glm::vec3(0.4f, 0.4f - glm::exp(-rd.y * 20.0f) * 0.3f, 0.0f) *
+                exp(-rd.y * 9.0f); // yellowy sky
+            sky_col = glm::mix(sky_col * 1.2f, state.light.ambient(),
+                               1.0f - glm::exp(yd * 100.0f)); // ground fog
+
+            col += sky_col;
+          } else {
+            const glmt::vec3c pos = state.view * (start + dist * ray);
+            const float d =
+                glm::length(glm::vec3(state.light.pos) - glm::vec3(pos));
+            const glm::vec3 r =
+                glm::normalize(glm::vec3(state.light.pos) - glm::vec3(pos));
+            const glm::vec3 n = normal(start + dist * ray, EPSILON);
+            const glm::vec3 c = glm::normalize(glm::vec3(pos));
+
+            glm::vec3 z =
+                glm::project(glm::vec3(pos), glm::mat4(1), state.proj,
+                             glm::vec4(0, 0, window.width, window.height));
+
+            std::vector<std::tuple<glm::vec3, float>> light_samples;
+            light_samples.push_back(std::make_tuple(glm::vec3(0), 1));
+            glm::vec3 l_col(0);
+            for (const auto light_sample : light_samples) {
+              PointLight light = state.light;
+              // absolutely disgusting, it would be much nicer for light.pos to
+              // be in glmt::vec3w
+              light.pos =
+                  state.view * (glm::vec4(std::get<0>(light_sample), 0) +
+                                glm::inverse(state.view) * light.pos);
+
+              const float x = dist / static_cast<float>(MAX_DIST);
+              l_col += glm::mix(std::get<1>(light_sample) *
+                                    colour(start + dist * ray) *
+                                    // ao(start + dist * ray, EPSILON) *
+                                    phong(light, d, r, n, c),
+                                glm::vec3(0), x * x);
+            }
+            col += l_col / static_cast<float>(light_samples.size());
+            zinv += 1.f / z.z;
+          }
         }
+
+        col /= samples.size();
+        zinv /= samples.size();
+
+        glmt::rgbf01 tm = tm_aces(col);
+        window.setPixelColour(glmt::vec2p(x, y), zinv, tm.argb8888());
       }
     }
   } // end raymarch
@@ -533,10 +641,45 @@ void draw() {
         glm::project(glm::vec3(state.light.pos), glm::mat4(1), state.proj,
                      glm::vec4(0, 0, window.width, window.height));
 
-    // window.setPixelColour(glmt::vec2p(light), glmt::rgbf01(1.f).argb8888());
-    window.setPixelColour(glmt::vec2p(light), 1.f / light.z,
-                          glmt::rgbf01(1.f).argb8888());
+    for (int lx = -N + 1; lx < N; lx++) {
+      for (int ly = -N + 1; ly < N; ly++) {
+        // window.setPixelColour(glmt::vec2p(light + glm::vec3(lx, ly, 0)),
+        // glmt::rgbf01(1.f).argb8888());
+        window.setPixelColour(glmt::vec2p(light + glm::vec3(lx, ly, 0)),
+                              1.f / light.z, glmt::rgbf01(1.f).argb8888());
+      }
+    }
+
   } // end light
+
+  if (DS > 1) {
+    for (unsigned int y = 0; y < supersampled.height; y++) {
+      for (unsigned int x = 0; x < supersampled.width; x++) {
+        std::array<glmt::vec2p, DS * DS> samples;
+        {
+          size_t i = 0;
+          for (int sx = 0; sx < DS; sx++) {
+            for (int sy = 0; sy < DS; sy++) {
+              samples[i] = glmt::vec2p(sx, sy);
+              i++;
+            }
+          }
+        }
+
+        // should really do this before tone mapping
+        glmt::rgbf01 col(0);
+        glmt::vec2p pos(x, y);
+
+        for (const auto sample : samples) {
+          glmt::vec2p s_pos = pos + sample;
+          col += glm::vec3(window.getPixelColour(s_pos));
+        }
+
+        col /= samples.size();
+        supersampled.setPixelColour(pos, col.argb8888());
+      }
+    }
+  }
 }
 
 void update() {
@@ -548,32 +691,51 @@ void update() {
 
   state.logic++;
 
+  // state.models[0].mode = Model::RenderMode::NONE;
+  // state.models[1].mode = Model::RenderMode::NONE;
+  // state.models[2].mode = Model::RenderMode::NONE;
+
   switch (state.logic) {
   case 0:
     state.models[0].mode = Model::RenderMode::FILL;
     break;
-  case int(FRAMES * 1 / 7):
+  case int(FRAMES * 1 / 37):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 2 / 7):
+  case int(FRAMES * 2 / 37):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 3 / 7):
+  case int(FRAMES * 3 / 37):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
-  case int(FRAMES * 4 / 7):
+  case int(FRAMES * 4 / 37):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
     state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
-  case int(FRAMES * 5 / 7):
-    state.raymarch = true;
+  case int(FRAMES * 5 / 37):
+    state.models[0].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[1].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 6 / 7):
+  case int(FRAMES * 6 / 37):
+    state.models[0].mode = Model::RenderMode::WIREFRAME;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
+    state.models[2].mode = Model::RenderMode::PATHTRACE;
+    break;
+  case int(FRAMES * 8 / 37):
+    state.models[0].mode = Model::RenderMode::PATHTRACE;
+    state.models[1].mode = Model::RenderMode::PATHTRACE;
+    state.models[2].mode = Model::RenderMode::PATHTRACE;
+    break;
+  case int(FRAMES * 9 / 37):
+    // state.raymarch = true;
+    break;
+  case int(FRAMES * 10 / 37):
+    state.models[0].mode = Model::RenderMode::NONE;
+    state.models[1].mode = Model::RenderMode::NONE;
+    state.models[2].mode = Model::RenderMode::NONE;
     break;
   }
 
@@ -585,17 +747,10 @@ void update() {
   float s7 = glm::sin(delta / 7);
   float s11 = glm::sin(delta / 11);
 
-  // if (state.raymarch) {
-  //   state.light.pos = state.view *
-  //                     glm::rotate(glm::sin(delta) * 2.f, glm::vec3(1, 0, 0))
-  //                     * glm::rotate(glm::cos(delta) * 2.f, glm::vec3(0, 1,
-  //                     0)) * glm::vec4(0, 0, -2, 1);
-  // } else {
   state.light.pos = state.view * (state.models[0].matrix *
                                       glm::vec4(-0.234011, 5.218497 - 0.318497,
                                                 -3.042968, 1) +
                                   glm::vec4(s2, s3 + 2, s5 + 2, 0));
-  // }
   state.light.diff_b = 200.f + (s2 * s5) * 50 + 70;
   state.light.spec_b = 3.f + (s2 * s5) * 0.2 + 0.5;
   state.light.ambi_b = 0.14f;
