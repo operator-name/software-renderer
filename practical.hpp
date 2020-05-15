@@ -780,6 +780,11 @@ glm::vec3 pathtrace_light(
     const Intersection &intersection) {
   const glm::vec3 model_c = model.colours[intersection.triangleIndex];
 
+  // // cheat emmissiveness, add Kd and Ks to Model sometime
+  // if (glm::compMin(model_c) == 1) {
+  //   return glm::vec3(1e10, 1e10, 1e10);
+  // }
+
   glm::vec4 r = glm::normalize(-intersection.position + light.pos);
   glm::vec4 n = triangle_normal(triangles[intersection.triangleIndex]);
   // TODO: if moved, use <glm/gtx/norm.hpp> length2

@@ -16,18 +16,15 @@
 #include <cstdlib>
 
 #define FPS (30.0)
-#define TIME (30.0)
+#define TIME (60.0)
 #define FRAMES (FPS * TIME)
-#define WRITE_FILE (false)
+#define WRITE_FILE (true)
 #define EXIT_AFTER_WRITE (WRITE_FILE && true)
 #define RENDER (true)
 
-// AA by stealing a few pixels from your neighbours
-#define NEIGHBOUR_AA (false)
-#define N (1)
-#define DS                                                                     \
-  (1) // a supersampled window which is 1/DS of the size, disabled by setting to
-      // 1
+#define N (6)
+// a supersampled window which is 1/DS of the size, disabled by setting to 1
+#define DS (1)
 #define WIDTH (320 * N)
 #define HEIGHT (240 * N)
 
@@ -152,7 +149,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (WRITE_FILE && state.frame < FRAMES) { // save frame as PPM
-      if (state.frame > 0 && state.frame % static_cast<int>(FPS) == 0) {
+      if (state.frame > 0 && state.frame % static_cast<int>(FPS / 3) == 0) {
         auto t2 = std::chrono::high_resolution_clock::now();
         std::cout << "frames: " << static_cast<float>(state.frame) << std::endl;
         std::cout
@@ -699,40 +696,40 @@ void update() {
   case 0:
     state.models[0].mode = Model::RenderMode::FILL;
     break;
-  case int(FRAMES * 1 / 37):
+  case int(FRAMES * 1 / 61):
     state.models[0].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 2 / 37):
+  case int(FRAMES * 2 / 61):
     state.models[0].mode = Model::RenderMode::RASTERISE_GOURAD;
     state.models[1].mode = Model::RenderMode::RASTERISE_VERTEX;
     break;
-  case int(FRAMES * 3 / 37):
+  case int(FRAMES * 3 / 61):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::RASTERISE_GOURAD;
     break;
-  case int(FRAMES * 4 / 37):
+  case int(FRAMES * 4 / 61):
     state.models[1].mode = Model::RenderMode::WIREFRAME;
     state.models[2].mode = Model::RenderMode::WIREFRAME_AA;
     break;
-  case int(FRAMES * 5 / 37):
+  case int(FRAMES * 5 / 61):
     state.models[0].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[1].mode = Model::RenderMode::WIREFRAME_AA;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 6 / 37):
+  case int(FRAMES * 6 / 61):
     state.models[0].mode = Model::RenderMode::WIREFRAME;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 8 / 37):
+  case int(FRAMES * 8 / 61):
     state.models[0].mode = Model::RenderMode::PATHTRACE;
     state.models[1].mode = Model::RenderMode::PATHTRACE;
     state.models[2].mode = Model::RenderMode::PATHTRACE;
     break;
-  case int(FRAMES * 9 / 37):
-    // state.raymarch = true;
+  case int(FRAMES * 9 / 61):
+    state.raymarch = true;
     break;
-  case int(FRAMES * 10 / 37):
+  case int(FRAMES * 10 / 61):
     state.models[0].mode = Model::RenderMode::NONE;
     state.models[1].mode = Model::RenderMode::NONE;
     state.models[2].mode = Model::RenderMode::NONE;
